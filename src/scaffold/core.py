@@ -59,7 +59,7 @@ class SolutionPath():
         self.data = data
         self.algo = algo
         self.K = K
-        self.folder = self._create_folder_name
+        self.folder = self._create_folder_name()
         try:
             _,meta = self.load_ests_n_meta()
             self.pens_fitted = set(meta['pen'])
@@ -73,9 +73,9 @@ class SolutionPath():
     
     def _filename(self, output_type = 'weights'):
         if output_type == 'weights':
-            pass
+            return self.folder + f'K{self.K}_{self.algo}_W.csv'
         elif output_type == 'meta data':
-            pass # TODO!!!
+            return self.folder + f'K{self.K}_{self.algo}_meta.csv'
 
     def _already_fitted(self,pen):
         return sum([np.isclose(pen,penb,rtol=1e-03, atol=1e-06) for penb in self.pens_fitted])
@@ -107,31 +107,26 @@ class SolutionPath():
         Ue,Ve are pxK, qxK resp, single n,rs; can have different penalties in list pens,
         Warning: I've removed the cv column in meta!!!
         """
-        d = self.data  # will access many attributes so convenient to abbreviate
-        folder_name = d.folder
-        os.makedirs(folder_name,exist_ok=True)
-        file_name = folder_name+f'/estimates/K{self.K}_{self.algo}_W.csv'
+        file_name = self._filename('weights')
         ests_to_csv(Ue,Ve,file_name)
 
-        K = Ue.shape[1]
+        d = self.data  # will access many attributes so convenient to abbreviate
         keys = ['p','q','n','pen','K','t']
         vals = [d.p,d.q,d.n,pens,range(self.K),te]
         meta_df = pd.DataFrame(dict(zip(keys,vals)))
         if type(d) == MVNData: meta_df['rs'] = d.rs
-        file_name = folder_name+f'/estimates/K{self.K}_{self.algo}_meta.csv'
-        # want to be able to add more estimates if poor penalty parameters first
-        # so if folder already exists then want to append without header
+        file_name = self._filename('meta data')
+        # want to be able to add more estimates if only poor penalty parameters fitted on the first attempt
+        # therefore if file already exists then want to append without header
         headerq = not os.path.exists(file_name)
         meta_df.to_csv(file_name, mode='a',header = headerq)
         return print(f'saved to {file_name}')
 
     def load_ests_n_meta(self):
-        folder_name = self.data.folder
-
-        file_name = folder_name+f'/K{self.K}_{self.algo}_W.csv'
+        file_name = self._filename('weights')
         stored_ests = np.array(pd.read_csv(file_name,header=None))
 
-        file_name = folder_name+f'/K{self.K}_{self.algo}_meta.csv'
+        file_name = self._filename('meta data')
         meta = pd.read_csv(file_name,index_col=0)
 
         return stored_ests,meta
@@ -182,6 +177,37 @@ class CV():
         else:
             self.full_path = SolutionPath(data,algo,K)
 
+        self.summary_folder = self._create_summary_folder()
+
+
+    def _create_summary_folder(self):
+        folder_name = self.data.folder + 'summary/'
+        os.makedirs(folder_name,exist_ok=True)
+        return folder_name
+    
+    def _filename(self, output_type = 'cv full'):
+        output_type_encoder = {
+            'cv full': 'cv_full',
+            'cv averages': 'cv_av',
+            'instability full': 'instab_full',
+            'instability averages': 'instab_av',
+        }
+        encoded = output_type_encoder[output_type]
+        return self.summary_folder + f'K{self.K}_{self.algo}_{encoded}.csv'
+
+    def load_summary(self, output_type = 'cv full'):
+        file_name = self._filename(output_type)
+        # the styling required to read csv depends on the output type
+        # (based on the default behaviour of pd.to_csv for arrays with different indices)
+        # may need to be updated if the code for creating / saving summary dataframes is changed
+        read_styling = {
+            'cv_full': {'header': 'infer', 'index_col': None},
+            'cv averages': {'header': [0,1], 'index_col': 0},
+            'instability full': {'header': [0,], 'index_col': 0},
+            'instability averages': {'header': [0,1], 'index_col': 0},
+        }
+        return pd.read_csv(file_name, **read_styling[output_type])
+
     def _get_splits(self):
         kf = KFold(n_splits=self.folds,shuffle=True,random_state=0)
         X,Y = self.data.X,self.data.Y
@@ -208,15 +234,12 @@ class CV():
 
 
     def process_cv(self,update=True):
-        # update = True is addition on 28 April 2023 that will allow new penalties to be added without re-fitting previous penalties
-        # key implementation detail is to find out which penalties have already been analysed
-        
-        # for use in multiple places later in this function
+        """if update==True then will only process penalties that do not appear in the existing summary dataframe
+        whereas if update==False then will process all penalties in pen_list"""
         if update:
-            # load exisiting dfcv and create function to check if pen has already been processed
-            # but if not run before, file won't exist so function should return False
+            # create function `already_processed` to check if pen has already been processed
             try:
-                dfcv_full_old = self.load_dfcv()
+                dfcv_full_old = self.load_summary('cv full')
                 pens_processed = dfcv_full_old['pen'].unique()
                 def already_processed(pen): return np.isclose(pen,pens_processed).any()
             except FileNotFoundError:
@@ -253,7 +276,9 @@ class CV():
                 df['pen'] = pen
                 for r in range(1,self.K+1):
                     inds = range(1,r+1)
-                    df[f'rhosum{r}'] = sum([df[f'rho{i}'] for i in inds])
+                    # WARNING - will break downstream - but editing now to make sure it happens
+                    df[f'r1s{r}'] = sum([df[f'rho{i}'] for i in inds])
+                    df[f'r2s{r}'] = sum([df[f'rho{i}']**2 for i in inds])
                 return df
 
             # only process new penalties
@@ -272,12 +297,12 @@ class CV():
         if update:
             dfcv_full = pd.concat([dfcv_full_old,dfcv_full])
 
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfcv.csv'
+        file_name = self._filename('cv full')
         dfcv_full.to_csv(file_name,index=False)
 
         dfcv_avgd = (dfcv_full.drop(columns=['cv'])
                              .groupby(['pen']).agg([np.mean,np.std]))
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfcvav.csv'
+        file_name = self._filename('cv averages')
         dfcv_avgd.to_csv(file_name)
 
     def get_pen_list(self):
@@ -294,7 +319,7 @@ class CV():
         if new_pens_only:
             # if no file found then need to update all penalties
             try:
-                dfstabfull_old = self.load_dfstab()
+                dfstabfull_old = self.load_summary('instability full')
                 pens_processed = dfstabfull_old['pen'].unique()
                 def already_processed(pen): return np.isclose(pen,pens_processed).any()
                 pens_to_process = [pen for pen in self.get_pen_list() if not already_processed(pen)]
@@ -354,35 +379,14 @@ class CV():
         if new_pens_only:
             df_full = pd.concat([dfstabfull_old,df_full])
 
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfstabfull.csv'
+        file_name = self._filename('instability full')
         df_full.to_csv(file_name)
-
 
         dfstabav = (df_full.drop(columns=['fold_pair'])
                            .groupby(['pen']).agg([np.mean,np.std]))
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfstabav.csv'
+        file_name = self._filename('instability averages')
         dfstabav.to_csv(file_name)
         return dfstabav
-
-    def load_dfstab(self):
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfstabfull.csv'
-        df = pd.read_csv(file_name,header=[0,],index_col=0)
-        return df
-
-    def load_dfstabav(self):
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfstabav.csv'
-        df = pd.read_csv(file_name,header=[0,1],index_col=0)
-        return df
-
-    def load_dfcv(self):
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfcv.csv'
-        df = pd.read_csv(file_name)
-        return df
-
-    def load_dfcvav(self):
-        file_name = self.data.folder + f'/K{self.K}_{self.algo}_dfcvav.csv'
-        df = pd.read_csv(file_name,header=[0,1],index_col=0)
-        return df
 
     def get_best_pen(self,objective='rhosum5'):
         # be careful to call this with an objective that has actually been fitted already!
@@ -426,7 +430,7 @@ class MVNCV(CV):
         self.full_path.process_estimates()
 
     def load_dffull(self):
-        return self.full_path.load_dffull()
+        return self.full_path.load_summary('cv full')
 
 
 
@@ -436,10 +440,18 @@ class MVNSolPath(SolutionPath):
         super().__init__(data,algo,K)
         assert type(data) == MVNData, 'data has to be multivariate normal'
 
-    def process_estimate(self,pen):
-        # coding goal: rewrite this function to be more readable
-        # will have more intuitive pairing of string labels to values
+        self.summary_folder = self._create_summary_folder()
 
+    def _create_summary_folder(self):
+        folder_name = self.data.folder + 'summary/'
+        os.makedirs(folder_name,exist_ok=True)
+        return folder_name
+    
+    def _filename(self, output_type = 'oracle'):
+        if output_type == 'oracle full':
+            return self.summary_folder + f'K{self.K}_{self.algo}_oracle.csv'
+
+    def _process_estimate(self,pen):
         # first compute all auxilliary quantities
         X,Y = self.data.X, self.data.Y
         Sig = self.data.mvn.Sig
@@ -478,9 +490,9 @@ class MVNSolPath(SolutionPath):
         return df
 
     def process_estimates(self):
-        single_rows = [self.process_estimate(pen) for pen in self.pens_fitted]
+        single_rows = [self._process_estimate(pen) for pen in self.pens_fitted]
         dffull = pd.concat(single_rows)
-        file_name = self.data.folder+f'/K{self.K}_{self.algo}_dffull.csv'
+        file_name = self._filename('oracle')
         dffull.to_csv(file_name,index=False)
         return dffull
 
@@ -489,7 +501,7 @@ class MVNSolPath(SolutionPath):
         self.process_estimates()
 
     def load_dffull(self):
-        file_name = self.data.folder+f'/K{self.K}_{self.algo}_dffull.csv'
+        file_name = self._filename('oracle')
         return pd.read_csv(file_name).sort_values(by='pen')
 
 
