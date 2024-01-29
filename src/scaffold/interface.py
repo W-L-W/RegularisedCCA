@@ -7,19 +7,45 @@ from cca_zoo.models import rCCA,SCCA_IPLS
 
 from src.algos import sb_algo_glasso, first_K_ccs_lazy, PMD_CCA
 from src.utils import covs
-from src.scaffold.core import MVN, MVNFactory
+from src.scaffold.core import Data, CV, MVNData, MVNCV, MVNFactory
+
+from real_data.loading import get_breastdata, get_nutrimouse, get_microbiome
+
 
 # IO behaviour
 dir_path = os.path.dirname(os.path.realpath(__file__))
-base_ds = dir_path+'/../big_sims/oop_sims'
+base_ds = dir_path+'/../expmts_out'
 
-def mvn_folder_name(mvn: MVN,rs: int,n: int):
-    cov_desc,p,q = mvn.cov_desc,mvn.p,mvn.q
-    folder_name = base_ds + f'/{cov_desc}/p{p}q{q}n{n}/rs{rs}'
+def mvn_folder_name(mvn: MVNData, rs: int, n: int):
+    cov_desc,p,q = mvn.cov_desc, mvn.p, mvn.q
+    folder_name = base_ds + f'/{cov_desc}/p{p}q{q}n{n}/rs{rs}/'
     return folder_name
 
 
-# Algorithms: from string algorithm names to estimates
+# COORDINATION
+##############
+def get_cv_object(dataset: str, algo: str) -> CV:
+    """ Inputs are strings representing the dataset and algorithm respectively"""
+    data = get_dataset(dataset)
+    cv_obj = CV(data,folds=5,algo=algo,R=10)
+    return cv_obj
+
+def get_cv_obj_from_data(data: Data, algo: str) -> CV: #MVN=False
+    """ For all simulations we use 5 folds and top 10 directions; this helper function abstracts that out """
+    if type(data) == MVNData: # if dataset is generated from known multivariate normal distribution
+        return MVNCV(data,folds=5,algo=algo,R=10)
+    else:
+        return CV(data,folds=5,algo=algo,R=10)
+
+
+# ALGORITHMS
+############
+algo_labels = {'wit':'sPLS',
+               'suo': 'sCCA',
+               'gglasso': 'gCCA',
+               'ridge': 'rCCA',}
+
+# from string algorithm names to estimates
 def get_ests_n_time(X,Y, algo: str, pen: float, K: int):
     n = X.shape[0]
     Xtil, Ytil = X/np.sqrt(n), Y/np.sqrt(n)
@@ -54,10 +80,46 @@ def get_ests_n_time(X,Y, algo: str, pen: float, K: int):
     te = time.time()-start
     return Ue[:,:K],Ve[:,:K],te
 
+# choosing penalties depends primarily on algorithm, and dataset size
+# these choices worked well for the three datasets we considered, and the setting of our study 
+# but one may want to edit the choice of penalties for other datasets or applications
+def get_pens(algo,data):
+    """
+    Determine penalties to use for given algo as a function of size of data
+    Run-time will scale linearly with number of different penalties
+    """
+    if algo == 'wit': 
+        pens = np.logspace(np.log10(1),np.log10(7),15)
+    elif (algo == 'suo') or (algo == 'gglasso') or (algo == 'IPLS'):
+        def pen_poly(n): return 2 * (n ** -0.5)
+        pens = np.block([np.logspace(-20,-3,2),np.logspace(-2,-1.2,3),np.logspace(-1,1,16),np.logspace(1.2,2,4)]) * pen_poly(data.n) 
+    elif (algo == 'ridge'):
+        # changed 19 Jan to have more coverage near 1
+        pens_from_zero = np.block([np.logspace(-20,-4,2),np.logspace(-4,-1,6),np.linspace(0.2,0.8,6)])   
+        pens_to_one = 1 - np.logspace(-1, -4, 4)
+        pens = np.block([pens_from_zero,pens_to_one])  
+    return pens
 
-# Synthetic data generation: from string descriptor to cov mat for Multivariate Normal (MVN):
+# REAL DATA
+###########
+def get_dataset(dataset: str):
+    """ Options: 'breastdata', 'nutrimouse', 'microbiome' """
+    if dataset=='breastdata':
+        data = get_breastdata()
+    elif dataset=='nutrimouse':
+        data = get_nutrimouse()
+    elif dataset == 'microbiome':
+        data = get_microbiome()
+    else:
+        print(f'Unrecognised dataset: {dataset}')
+    return data
+
+
+# SYNTHETIC DATA
+################
 def cov_type_to_fac(cov_type: str):
-    # mac is short for machiine (working in the factory)
+    """convert from string descriptor to cov mat for Multivariate Normal (MVN)"""
+    # mac is short for machine (working in the factory)
     if cov_type == '3spike_id':
         mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='identity')
     elif cov_type == '3spike_to':

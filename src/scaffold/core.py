@@ -59,11 +59,23 @@ class SolutionPath():
         self.data = data
         self.algo = algo
         self.K = K
+        self.folder = self._create_folder_name
         try:
             _,meta = self.load_ests_n_meta()
             self.pens_fitted = set(meta['pen'])
         except FileNotFoundError:
             self.pens_fitted = set()
+
+    def _create_folder_name(self):
+        folder_name = self.data.folder + 'estimates/'
+        os.makedirs(folder_name,exist_ok=True)
+        return folder_name
+    
+    def _filename(self, output_type = 'weights'):
+        if output_type == 'weights':
+            pass
+        elif output_type == 'meta data':
+            pass # TODO!!!
 
     def _already_fitted(self,pen):
         return sum([np.isclose(pen,penb,rtol=1e-03, atol=1e-06) for penb in self.pens_fitted])
@@ -98,7 +110,7 @@ class SolutionPath():
         d = self.data  # will access many attributes so convenient to abbreviate
         folder_name = d.folder
         os.makedirs(folder_name,exist_ok=True)
-        file_name = folder_name+f'/K{self.K}_{self.algo}_W.csv'
+        file_name = folder_name+f'/estimates/K{self.K}_{self.algo}_W.csv'
         ests_to_csv(Ue,Ve,file_name)
 
         K = Ue.shape[1]
@@ -106,7 +118,7 @@ class SolutionPath():
         vals = [d.p,d.q,d.n,pens,range(self.K),te]
         meta_df = pd.DataFrame(dict(zip(keys,vals)))
         if type(d) == MVNData: meta_df['rs'] = d.rs
-        file_name = folder_name+f'/K{self.K}_{self.algo}_meta.csv'
+        file_name = folder_name+f'/estimates/K{self.K}_{self.algo}_meta.csv'
         # want to be able to add more estimates if poor penalty parameters first
         # so if folder already exists then want to append without header
         headerq = not os.path.exists(file_name)

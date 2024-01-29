@@ -140,3 +140,33 @@ def geom_corr_decay_sparse_weight_multi_spike(
     return joint_cov_from_within_view_covs_and_candidate_directions(
         Sigxx, Sigyy, U, V, R
     )
+
+# inspired by Bach and Jordan Probabilistic CCA 2005
+def cov_from_latents(p,q,nlatents,decay_ratio,supp_size,method='identity',geom_param=1):
+    rng = np.random.default_rng(seed=0)
+    Wx,Wy = np.zeros((p,nlatents)),np.zeros((q,nlatents))
+    Psix = iden_like_cov_sub(method,p)
+    Psiy = iden_like_cov_sub(method,q)
+
+    def get_probs(d):
+        probs = np.array([geom_param**k for k in range(d)])
+        return probs / sum(probs)
+    probsp = get_probs(p); probsq = get_probs(q)
+
+    for k in range(nlatents):
+        x_ids = rng.choice(p,size=supp_size,replace=False,p=probsp)
+        y_ids = rng.choice(q,size=supp_size,replace=False,p=probsq)
+        Wx[x_ids,k] = rng.uniform(low=-1,high=1,size=supp_size)
+        Wy[y_ids,k] = rng.uniform(low=-1,high=1,size=supp_size)
+
+    D = 2*np.abs(np.diag([(nlatents - 2*k)/nlatents * decay_ratio**k for k in range(1,nlatents+1)]))
+    Wx = Wx @ D
+    Wy = Wy @ D
+
+    Sigxx = Psix + Wx @ Wx.T
+    Sigyy = Psiy + Wy @ Wy.T
+    Sigxy = Wx @ Wy.T
+    Sigyx = Sigxy.T
+
+    Sigma = np.block([[Sigxx,Sigxy],[Sigyx,Sigyy]])
+    return Sigma

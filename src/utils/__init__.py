@@ -12,5 +12,6 @@ from .linalg import (
     get_near_psd,
     sin2theta,
     sin2theta_mult,
-    sq_trigs
+    sq_trigs,
+    register_general,
 )
