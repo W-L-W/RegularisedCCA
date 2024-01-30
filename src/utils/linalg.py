@@ -35,7 +35,7 @@ def symmetric_pinv(M,rgln=10**-8):
     w_inv = _masked_power(w, power=-1, rgln=rgln)
     return v@ np.diag(w) @v.T
 
-def isPD(B):
+def isPSD(B):
     la = np.linalg
     #https://stackoverflow.com/questions/43238173/python-convert-matrix-to-positive-semi-definite
     """Returns true when input is positive-definite, via Cholesky"""

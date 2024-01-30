@@ -161,6 +161,7 @@ class Split():
         self.train_data = train_data
         self.test_data = test_data
 
+
 class CV():
     def __init__(self,data,folds,algo,K):
         self.data = data
@@ -178,7 +179,6 @@ class CV():
             self.full_path = SolutionPath(data,algo,K)
 
         self.summary_folder = self._create_summary_folder()
-
 
     def _create_summary_folder(self):
         folder_name = self.data.folder + 'summary/'

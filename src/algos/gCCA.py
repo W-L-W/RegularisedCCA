@@ -1,5 +1,5 @@
 import numpy as np
-from utils import cca_from_cov_mat, isPD, get_near_psd
+from utils import cca_from_cov_mat, isPSD, get_near_psd
 from sklearn.covariance import graphical_lasso
 from gglasso.problem import glasso_problem
 import time
@@ -77,7 +77,7 @@ def sb_algo_glasso_gen(X,Y,pen=0.05,max_iter=100,pdef_handling=None,gam=None):
     if latent: sol_om = P.solution.precision_ - P.solution.lowrank_
     est_Sig = np.linalg.inv(sol_om)
 
-    if not isPD(sol_om):
+    if not isPSD(sol_om):
         print('not positive definite; so regularising...')
         if pdef_handling == 'near_sig_psd':
             est_Sig = get_near_psd(est_Sig)
@@ -86,7 +86,7 @@ def sb_algo_glasso_gen(X,Y,pen=0.05,max_iter=100,pdef_handling=None,gam=None):
             est_Sig = np.linalg.inv(sol_om)
         elif pdef_handling == '4x_iters':
             # factor of 4 is arbitrary but probably sufficient and not overkill
-            if not isPD(sol_om):
+            if not isPSD(sol_om):
                 P.solve(solver_params={'max_iter':4*max_iter})
                 sol_om = P.solution.precision_
                 est_Sig = np.linalg.inv(sol_om)
@@ -104,7 +104,7 @@ def sb_algo_glasso_gen(X,Y,pen=0.05,max_iter=100,pdef_handling=None,gam=None):
             est_Sig = np.linalg.inv(sol_om)
         elif pdef_handling == '4x_iters':
             # factor of 4 is arbitrary but probably sufficient and not overkill
-            if not isPD(sol_om):
+            if not isPSD(sol_om):
                 P.solve(solver_params={'max_iter':4*max_iter})
                 sol_om = P.solution.precision_
                 est_Sig = np.linalg.inv(sol_om)

@@ -8,7 +8,7 @@ from .cca import (
 )
 
 from .linalg import (
-    isPD,
+    isPSD,
     get_near_psd,
     sin2theta,
     sin2theta_mult,
