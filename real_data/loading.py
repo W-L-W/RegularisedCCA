@@ -6,33 +6,35 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 from src.scaffold.core import Data
-from src.scaffold.interface import base_ds
+from src.scaffold.incoming import base_ds, real_data_base_ds
 
 
 # Shared helper functions
 def demean_cols(M):
     return M - M.mean(axis=0)
 
-def data_filename(dataset: str, filename: str) -> str:
-    dataset_base_ds = '../real_data'
-    raw_directory = dataset_base_ds + '/' + dataset + '/raw/'
+def raw_data_filename(dataset: str, filename: str) -> str:
+    raw_directory = real_data_base_ds + '/' + dataset + '/raw/'
     return raw_directory + filename
 
+def pboot_filename(dataset: str, filename: str) -> str:
+    pboot_directory = real_data_base_ds + '/' + dataset + '/pboot/'
+    return pboot_directory + filename
 
 # BREASTDATA
 ############
 
 def get_breastdata():
-    X0 = np.array(pd.read_csv(data_filename('breastdata', 'dna_matrix.csv'), index_col=0).T)
-    Y0 = np.array(pd.read_csv(data_filename('breastdata', 'rna_matrix.csv'), index_col=0).T)
+    X0 = np.array(pd.read_csv(raw_data_filename('breastdata', 'dna_matrix.csv'), index_col=0).T)
+    Y0 = np.array(pd.read_csv(raw_data_filename('breastdata', 'rna_matrix.csv'), index_col=0).T)
 
     X, Y = list(map(demean_cols, [X0, Y0]))
 
-    dna_labels_full = pd.read_csv(data_filename('breastdata', 'dna_labels.csv'), index_col=0)
+    dna_labels_full = pd.read_csv(raw_data_filename('breastdata', 'dna_labels.csv'), index_col=0)
     dna_labels = dna_labels_full.apply(lambda row: str(int(row['chrom'])) + ',' + str(int(row['nuc'] // 1000)) + 'k', axis=1)
     dna_labels.name = 'dna labels'
 
-    rna_labels_full = pd.read_csv(data_filename('breastdata', 'rna_labels.csv'), index_col=0)
+    rna_labels_full = pd.read_csv(raw_data_filename('breastdata', 'rna_labels.csv'), index_col=0)
     rna_labels = rna_labels_full['genename']
     rna_labels.name = 'rna_labels'
 
@@ -43,8 +45,8 @@ def get_breastdata():
 # NUTRIMOUSE
 ############
 def get_nutrimouse():
-    lipids = pd.read_csv(data_filename('nutrimouse', 'lipid.csv'))
-    genes = pd.read_csv(data_filename('nutrimouse', 'gene.csv'))
+    lipids = pd.read_csv(raw_data_filename('nutrimouse', 'lipid.csv'))
+    genes = pd.read_csv(raw_data_filename('nutrimouse', 'gene.csv'))
 
     X0 = np.array(lipids)
     Y0 = np.array(genes)
@@ -79,8 +81,8 @@ def get_microbiome():
 ## Data preparation and computation of estimates
 def prep_type_to_data(prep_type):
     # transpose so that rows are shared as in data-matrix setup
-    k0df = pd.read_csv(data_filename('microbiome','ko_hmp2.csv'),index_col='KEGG').T
-    metdf = pd.read_csv(data_filename('microbiome','metabolites_hmp2.csv'),index_col='KEGG').T
+    k0df = pd.read_csv(raw_data_filename('microbiome','ko_hmp2.csv'),index_col='KEGG').T
+    metdf = pd.read_csv(raw_data_filename('microbiome','metabolites_hmp2.csv'),index_col='KEGG').T
 
     patients_in_both = k0df.index.intersection(metdf.index)
 
