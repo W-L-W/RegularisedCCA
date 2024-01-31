@@ -8,8 +8,9 @@ from cca_zoo.models import rCCA,SCCA_IPLS
 from src.algos import sb_algo_glasso, first_K_ccs_lazy, PMD_CCA
 from src.utils import covs
 from src.scaffold.core import Data, CV, MVNData, MVNCV, MVNFactory
+from src.scaffold.synthetic import gen_parametric_bootstrap_cov
 
-from real_data.loading import get_breastdata, get_nutrimouse, get_microbiome
+from real_data.loading import get_breastdata, get_nutrimouse, get_microbiome, pboot_filename
 
 
 # IO behaviour
@@ -114,8 +115,28 @@ def get_dataset(dataset: str):
         print(f'Unrecognised dataset: {dataset}')
     return data
 
+# and dictionary to determine behaviour of parametric bootstrap
+# currently copied over manually from previous experiment runs
+# TODO: have a more systematic way to determine penalty settings
+bootstrap_params = {
+    ('nutrimouse','ridge','cv'): {'ridge': 0.1},
+    ('nutrimouse', 'gglasso', 'cv'): {'pen': 0.1},
+    ('nutrimouse', 'suo_ridge', 'cv'): {'pen': 0.1, 'K': 10, 'ridge': 0.01},
+}
+# note still to be finished - need to implement the main function before doing any more like this
 
-# SYNTHETIC DATA
+def save_pboot_cov(dataset:str, regn:str, regn_mode:str):
+    Sig = gen_parametric_bootstrap_cov(dataset, regn, regn_mode)
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.csv')
+    np.save(filename, Sig)
+
+def load_pboot_cov(dataset:str, regn:str, regn_mode:str):
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.csv')
+    Sig = np.load(filename)
+    return Sig
+
+
+# PURELY SYNTHETIC DATA
 ################
 def cov_type_to_fac(cov_type: str):
     """convert from string descriptor to cov mat for Multivariate Normal (MVN)"""
