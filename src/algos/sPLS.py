@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import soft_threshold, suo_init, suo_init_K
+from src.utils import soft_threshold, suo_init, suo_init_K
 
 # I just coded this from scratch, hopefully it's efficient enough - perhaps a Cython implementation somewhere?
 def bin_search(f,a0,b0,tol=10**-12):

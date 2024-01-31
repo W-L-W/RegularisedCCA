@@ -8,7 +8,7 @@ from sklearn.model_selection import KFold
 from collections import OrderedDict
 from typing import List
 
-import src.scaffold.interface as interface
+from src.scaffold.incoming import mvn_folder_name, get_ests_n_time
 import src.utils as utils
 
 # # A word on motivation:
@@ -38,6 +38,7 @@ def ests_to_csv(Ue,Ve,file_name):
     data.to_csv(file_name,mode='a',index=False,header=False)
 
 
+
 class Data():
     def __init__(self,X,Y,folder_name=None,X_labs=None,Y_labs=None):
         assert type(X)==type(Y)==np.ndarray, 'non-array data will mess up indexing'
@@ -50,7 +51,7 @@ class Data():
         self.Y_labs = Y_labs
 
     def fit_algo(self,algo,pen,K):
-        Ue,Ve,te = interface.get_ests_n_time(self.X, self.Y, algo, pen, K)
+        Ue,Ve,te = get_ests_n_time(self.X, self.Y, algo, pen, K)
         return Ue,Ve,te
     
 
@@ -535,12 +536,13 @@ class MVNDist():
 
     def gen_data(self,rs,n):
         X,Y = utils.data_from_covariance(self.Sig,self.p,self.q,n,rs)
-        folder_name = interface.mvn_folder_name(self,rs,n)
+        folder_name = self._get_folder_name(rs,n)
         return MVNData(X,Y,rs,mvn_dist=self,folder_name=folder_name)
 
     def _get_folder_name(self,rs,n):
         # previously noted useful for metric_plotter #TODO check used there and delete if not
-        return interface.mvn_folder_name(self,rs,n)
+        name = mvn_folder_name(self.cov_desc, self.p, self.q, n, rs)
+        return mvn_folder_name(self,rs,n)
 
 
 class MVNFactory():

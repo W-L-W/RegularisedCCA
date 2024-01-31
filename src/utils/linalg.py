@@ -2,10 +2,18 @@ import itertools
 import numpy as np
 import time
 
+from typing import Union, List
+
+Vector = np.ndarray
+Matrix = np.ndarray
+SqMatrix = np.ndarray
+SymMatrix = np.ndarray
+PSDMatrix = np.ndarray
+
 # ROOTS, INVERSES, POSITIVE DEFINITENESS
 ########################################
 
-def _masked_power(vec, power: float, atol=10**-6, rgln: float = 0):
+def _masked_power(vec: Vector, power: float, atol: float =10**-6, rgln: float = 0):
     """Raise elements of a non-negative vector to the power of `power`, replacing zero entries with `rgln`"""
     w = vec.astype('float')
     mask = ~np.isclose(w, 0, atol=atol)
@@ -13,29 +21,29 @@ def _masked_power(vec, power: float, atol=10**-6, rgln: float = 0):
     w[~mask] = rgln
     return w
 
-def mhalf(vec):
+def mhalf(vec: Vector):
     """Raise elements of a non-negative vector to the power of (-1/2), leaving zero entries as zero"""
     # this masking implementation was significantly faster than using np.vectorize on large vectors
     assert (vec >= 0).all(), 'Input to square root must be non-negative'
     return _masked_power(vec, -0.5)
 
-def sqrtm(M):
+def sqrtm(M: PSDMatrix):
     w, v = np.linalg.eigh(M)
     return v@ np.diag(w**0.5) @v.T
 
-def nsqrtm(M):
+def nsqrtm(M: PSDMatrix):
     w, v = np.linalg.eigh(M)
     w_nsqrt = mhalf(w)
     return v@ np.diag(w_nsqrt) @v.T
 
-def symmetric_pinv(M,rgln=10**-8):
+def symmetric_pinv(M: SymMatrix, rgln: float = 10**-8):
     """regularised pseudo-inverse with explicit lower bound of rgln on eigenvalues
     (np.linalg.pinv gave me non-positive inverses)"""
     w, v = np.linalg.eigh(M)
     w_inv = _masked_power(w, power=-1, rgln=rgln)
     return v@ np.diag(w) @v.T
 
-def isPSD(B):
+def isPSD(B: Matrix):
     la = np.linalg
     #https://stackoverflow.com/questions/43238173/python-convert-matrix-to-positive-semi-definite
     """Returns true when input is positive-definite, via Cholesky"""
@@ -46,7 +54,7 @@ def isPSD(B):
     except la.LinAlgError:
         return False
 
-def get_near_psd(A,regn=10**-8):
+def get_near_psd(A: Matrix,regn=10**-8):
     #https://stackoverflow.com/questions/43238173/python-convert-matrix-to-positive-semi-definite
     C = (A + A.T)/2
     eigval, eigvec = np.linalg.eig(C)
@@ -58,11 +66,11 @@ def get_near_psd(A,regn=10**-8):
 # PROJECTIONS AND CANONICAL ANGLES
 ##################################
 
-def proj_onto_col_space(A):
+def proj_onto_col_space(A: Matrix):
     Q,R = np.linalg.qr(A)
     return Q@Q.T
 
-def sin2theta(A,B):
+def sin2theta(A: Matrix,B: Matrix):
     if len(A.shape)==1:
         A = A.reshape(-1,1)
     if len(B.shape)==1:
@@ -76,11 +84,11 @@ def sin2theta(A,B):
 
     return k - np.linalg.norm(A_GS.T @ B_GS,ord='fro')**2
 
-def sin2theta_mult(A,B):
+def sin2theta_mult(A: Matrix, B: Matrix):
     """Return 1D array of successive sin2theta values between successive column-spaces of A,B"""
     return sq_trigs(A,B,mode='sin')
 
-def sq_trigs(A,B,mode='cos'):
+def sq_trigs(A: Matrix, B: Matrix, mode='cos'):
     """Compute successive cos/sin2theta values between successive column-spaces of two matrices
     
     Parameters
@@ -106,7 +114,7 @@ def sq_trigs(A,B,mode='cos'):
     # take element-wise square of matrix of inner products
     return overlap_to_sq_trigs(A_GS.T @ B_GS,mode=mode)
     
-def overlap_to_sq_trigs(overlap,mode='cos'):
+def overlap_to_sq_trigs(overlap: SqMatrix, mode='cos'):
     """Converts overlap matrix to squared cosines or sines of canonical angles
     Parameters:
     overlap: ndarray, shape (K,K)
@@ -203,3 +211,32 @@ def register_general(Z1,Z0,reg_method='orthog',output='transformer_map',via=None
 
     else:
         raise ValueError('reg_method must be one of "signs", "perm_n_signs", "orthog"') 
+    
+
+# CUSTOM GRAM-SCHMIDT
+#####################
+def make_o_n(orig: Vector, o_n_list: List[Vector], psd: PSDMatrix):
+    """Given list of o.n. vectors, a psd matrix, and a vector orig, return a vector orthogonal to all o.n. vectors w.r.t. psd inner product"""
+    if o_n_list is []: return orig
+    else: 
+        orig_proj = orig - sum([perp * (orig.T @ psd @ perp).item() for perp in o_n_list])
+        norm_2 = (orig_proj.T @ psd @ orig_proj).item()
+        return orig_proj /  np.sqrt(norm_2)
+
+def gram_schmidt(input: Union[List[Vector], Matrix], psd_mat: PSDMatrix) -> Union[List[Vector], Matrix]:
+    """Make vectors o.n. with respect to psd_mat-inner-product.
+    Given: set of vectors (either in a list or successive columns of matrix), 
+    Return: set of vectors who are psd_mat o.n. and whose successive spans are the same as the original set of vectors"""
+    if type(input) == list:
+        vec_list = input
+        m,R = len(vec_list[0]),len(vec_list)
+        new_list = []
+        for r in range(R):
+            new_list.append(make_o_n(vec_list[r],new_list,psd_mat))
+        return new_list
+
+    # to handle matrices whose successive columns are to be made o.n., we call the list implementation
+    elif type(input) == np.ndarray:
+        vec_list = list(input.T)
+        new_list = gram_schmidt(vec_list,psd_mat)
+        return np.array(new_list).T

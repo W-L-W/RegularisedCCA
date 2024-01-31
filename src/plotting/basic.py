@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import utils
+import src.utils as utils
 
 def plot_histogram(X,Y):
     fig,axs = plt.subplots(ncols=2,figsize=(9,4))

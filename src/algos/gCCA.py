@@ -1,5 +1,5 @@
 import numpy as np
-from utils import cca_from_cov_mat, isPSD, get_near_psd
+from src.utils import cca_from_cov_mat, isPSD, get_near_psd
 from sklearn.covariance import graphical_lasso
 from gglasso.problem import glasso_problem
 import time

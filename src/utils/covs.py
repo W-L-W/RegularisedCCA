@@ -5,9 +5,7 @@ from scipy.stats import ortho_group
 
 from typing import List, Union
 # some custom types, for readability
-Vector = np.ndarray
-Array2D = np.ndarray
-PSDMatrix = np.ndarray
+from src.utils.linalg import Vector, Matrix, PSDMatrix, gram_schmidt
 
 # CANONICAL PAIR MODEL CONSTRUCTION
 ###################################
@@ -27,32 +25,7 @@ def joint_cov_from_within_view_covs_and_candidate_directions(
     Sig = np.block([[Sigxx,Sigxy],[Sigyx,Sigyy]])
     return Sig
 
-# change implementation of GS to do normalisation implicitly TODO
-def make_o_n(orig: Vector, o_n_list: List[Vector], psd: PSDMatrix):
-    """Given list of o.n. vectors, a psd matrix, and a vector orig, return a vector orthogonal to all o.n. vectors w.r.t. psd inner product"""
-    if o_n_list is []: return orig
-    else: 
-        orig_proj = orig - sum([perp * (orig.T @ psd @ perp).item() for perp in o_n_list])
-        norm_2 = (orig_proj.T @ psd @ orig_proj).item()
-        return orig_proj /  np.sqrt(norm_2)
 
-def gram_schmidt(input: Union[List[Vector], Array2D],psd_mat: PSDMatrix) -> Union[List[Vector], Array2D]:
-    """Make vectors o.n. with respect to psd_mat-inner-product.
-    Given: set of vectors (either in a list or successive columns of matrix), 
-    Return: set of vectors who are psd_mat o.n. and whose successive spans are the same as the original set of vectors"""
-    if type(input) == list:
-        vec_list = input
-        m,R = len(vec_list[0]),len(vec_list)
-        new_list = []
-        for r in range(R):
-            new_list.append(make_o_n(vec_list[r],new_list,psd_mat))
-        return new_list
-
-    # to handle matrices whose successive columns are to be made o.n., we call the list implementation
-    elif type(input) == np.ndarray:
-        vec_list = list(input.T)
-        new_list = gram_schmidt(vec_list,psd_mat)
-        return np.array(new_list).T
     
 
 

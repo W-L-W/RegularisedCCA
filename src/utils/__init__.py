@@ -5,6 +5,9 @@ from .cca import (
     true_cor_mat,
     emp_cov_mat,
     true_cov_mat,
+    soft_threshold,
+    suo_init_K,
+    suo_init,
 )
 
 from .linalg import (
@@ -14,4 +17,5 @@ from .linalg import (
     sin2theta_mult,
     sq_trigs,
     register_general,
+    gram_schmidt,
 )

@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Union
 
-from linalg import nsqrtm, mhalf
+from src.utils.linalg import nsqrtm, mhalf
 
 def cca_from_cov_mat(Sig, m, zero_cut_off: Union[float, None] = None):
     """
@@ -107,3 +107,61 @@ def can_corr_subs(cov_mat,K,agg='sq'):
         if agg == 'sq': return np.sum(R**2)
         elif agg == 'sum': return np.sum(R)
     return np.array([get_corr(k) for k in range(1,K+1)])
+
+
+# INITIALISATION FOR SCCA
+#########################
+
+def soft_threshold(M,gamma):
+    ind1 = (M > + gamma)
+    ind2 = (M < - gamma)
+    return ind1*(M - gamma) + ind2*(M + gamma)
+
+def suo_init(X,Y,gamma=None):
+    if gamma:
+        Sxy = soft_threshold(X.T@Y,gamma)
+    else:
+        thresh = np.diag(X.T@X).reshape(-1,1)@np.diag(Y.T@Y).reshape(1,-1)
+        n = X.shape[0]
+        thresh = 2.5*np.sqrt(thresh/n)
+        Sxy = soft_threshold(X.T@Y,thresh)
+
+    Uh,D,Vh = np.linalg.svd(Sxy)
+    Vh = Vh.T
+    #np.isclose(Sxy,Uh@np.diag(D)@Vh[:m,:])
+
+    Uscaling = np.sqrt(np.diag(Uh.T@X.T@X@Uh))
+    Vscaling = np.sqrt(np.diag(Vh.T@Y.T@Y@Vh))
+
+    Util = Uh/Uscaling
+    Vtil = Vh/Vscaling
+
+    Dtil = Util.T@X.T@Y@Vtil
+    k = np.argmax(np.diag(Dtil))
+    u_init = Util[:,k]
+    v_init = Vtil[:,k]
+
+    return (u_init,v_init)
+
+def suo_init_K(X,Y,K,gamma=None):
+    if gamma:
+        Sxy = soft_threshold(X.T@Y,gamma)
+    else:
+        thresh = np.diag(X.T@X).reshape(-1,1)@np.diag(Y.T@Y).reshape(1,-1)
+        n = X.shape[0]
+        thresh = 2.5*np.sqrt(thresh/n)
+        Sxy = soft_threshold(X.T@Y,thresh)
+
+    Uh,D,Vh = np.linalg.svd(Sxy)
+    Vh = Vh.T
+    #np.isclose(Sxy,Uh@np.diag(D)@Vh[:m,:])
+
+    Uscaling = np.sqrt(np.diag(Uh.T@X.T@X@Uh))
+    Vscaling = np.sqrt(np.diag(Vh.T@Y.T@Y@Vh))
+
+    Util = Uh/Uscaling
+    Vtil = Vh/Vscaling
+
+    Dtil = Util.T@X.T@Y@Vtil
+    ks = np.diag(Dtil).argsort()[-K:][::-1]
+    return Util[:,ks], Vtil[:,ks]

@@ -1,13 +1,42 @@
 # Think intention here was to copy over the block of code from oop_utils starting with 'Setting' class
 # TODO work through that!
-from src.scaffold.interface import get_dataset, bootstrap_params
+from src.scaffold.wrappers import get_dataset
 from src.algos import first_K_ccs_lazy
 from src.utils import gram_schmidt
 import numpy as np
+import os
 
+from real_data.loading import pboot_filename
+
+# and dictionary to determine behaviour of parametric bootstrap
+# currently copied over manually from previous experiment runs
+# TODO: have a more systematic way to determine penalty settings
+# for now used factor of 3 smaller penalty than cv optimal
+bootstrap_params = {
+    ('nutrimouse','ridge','cvm3'): {'ridge': 0.066},
+    ('nutrimouse', 'gglasso', 'cvm3'): {'pen': 0.0066},
+    ('nutrimouse', 'suo_ridge', 'cvm3'): {'pen': 0.026, 'K': 10, 'ridge': 0.01},
+}
+# note still to be finished - need to implement the main function before doing any more like this
+
+def save_pboot_cov(dataset:str, regn:str, regn_mode:str):
+    Sig = gen_parametric_bootstrap_cov(dataset, regn, regn_mode)
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov')
+    # make directory if it doesn't exist already
+    directory = os.path.dirname(filename)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    np.save(filename, Sig)
+
+def load_pboot_cov(dataset:str, regn:str, regn_mode:str):
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov')
+    Sig = np.load(filename)
+    return Sig
 
 def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'):
+    print('loading dataset')
     data = get_dataset(dataset)
+    print('loaded dataset')
     def demean_cols(M): return M - M.mean(axis=0)
     X,Y = list(map(demean_cols,[data.X,data.Y]))
     n,p = X.shape[:2]; q = Y.shape[1]
@@ -23,6 +52,7 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'):
         ridge_param = params['ridge']
         Sig = emp_cov +  ridge_param * np.identity(p+q)
     elif regn == 'gglasso':
+        print('fitting glasso problem')
         from gglasso.problem import glasso_problem
         pen_param = params['pen']
         reg_params = {'lambda1': pen_param}
@@ -51,5 +81,8 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'):
     else:
         raise NotImplementedError()
     
+    print('on to save')
     return Sig
 
+if __name__ == '__main__':
+    save_pboot_cov('nutrimouse', 'gglasso', 'cvm3')

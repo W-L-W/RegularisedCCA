@@ -6,7 +6,7 @@ from scipy.linalg import sqrtm
 from sklearn.preprocessing import normalize
 import time
 
-import utils
+import src.utils as utils
 
 # initialisation, something I made up myself, previously in file 'suo_algo'
 def get_initialisation(X,Y,r=0):
@@ -210,13 +210,11 @@ def first_r_ccs(X,Y,r_max,tol=10**-4,tau=0.01):
     return Uest,Vest,elapsed
 
 
-from utils import suo_init
-
 
 def suo_first_cc(X,Y,tol=10**-4,tau=0.01):
     start = time.time()
 
-    u_init,v_init = suo_init(X,Y)
+    u_init,v_init = utils.suo_init(X,Y)
     uf,vf = next_ccs(u_init,v_init,X,Y,X,Y,tol=tol,tau=tau)
 
     end = time.time()
@@ -322,7 +320,7 @@ def suo_first_lazy(X,Y,tau=0.01,lam=3):
     """
     start = time.time()
 
-    u_init,v_init = suo_init(X,Y)
+    u_init,v_init = utils.suo_init(X,Y)
     uf,vf = next_ccs_lazy(u_init,v_init,X,Y,X,Y,tau=tau,n_steps_ACS=12,n_steps_ADMM=100,lam=lam,tracked=False)
 
     end = time.time()
