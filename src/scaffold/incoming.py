@@ -63,21 +63,28 @@ def get_ests_n_time(X,Y, algo: str, pen: float, K: int):
 # choosing penalties depends primarily on algorithm, and dataset size
 # these choices worked well for the three datasets we considered, and the setting of our study 
 # but one may want to edit the choice of penalties for other datasets or applications
-def get_pens(algo,data):
+def get_pens(algo,data, mode='run'):
     """
     Determine penalties to use for given algo as a function of size of data
     Run-time will scale linearly with number of different penalties
+    mode: 'run' or 'debug'
     """
-    if algo == 'wit': 
-        pens = np.logspace(np.log10(1),np.log10(7),15)
-    elif (algo == 'suo') or (algo == 'gglasso') or (algo == 'IPLS'):
-        def pen_poly(n): return 2 * (n ** -0.5)
-        pens = np.block([np.logspace(-20,-3,2),np.logspace(-2,-1.2,3),np.logspace(-1,1,16),np.logspace(1.2,2,4)]) * pen_poly(data.n) 
-    elif (algo == 'ridge'):
-        # changed 19 Jan to have more coverage near 1
-        pens_from_zero = np.block([np.logspace(-20,-4,2),np.logspace(-4,-1,6),np.linspace(0.2,0.8,6)])   
-        pens_to_one = 1 - np.logspace(-1, -4, 4)
-        pens = np.block([pens_from_zero,pens_to_one])  
+    if mode == 'debug':
+        if algo == 'wit': pens = np.logspace(np.log10(2),np.log10(4),2)
+        else: pens = np.logspace(-3, -1, 2)
+    elif mode == 'run':
+        if algo == 'wit': 
+            pens = np.logspace(np.log10(1),np.log10(7),15)
+        elif (algo == 'suo') or (algo == 'gglasso') or (algo == 'IPLS'):
+            def pen_poly(n): return 2 * (n ** -0.5)
+            pens = np.block([np.logspace(-20,-3,2),np.logspace(-2,-1.2,3),np.logspace(-1,1,16),np.logspace(1.2,2,4)]) * pen_poly(data.n) 
+        elif (algo == 'ridge'):
+            # changed 19 Jan to have more coverage near 1
+            pens_from_zero = np.block([np.logspace(-20,-4,2),np.logspace(-4,-1,6),np.linspace(0.2,0.8,6)])   
+            pens_to_one = 1 - np.logspace(-1, -4, 4)
+            pens = np.block([pens_from_zero,pens_to_one])  
+    else:
+        raise ValueError(f'Unknown mode {mode} for get_pens')
     return pens
 
 

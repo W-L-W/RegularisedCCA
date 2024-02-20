@@ -1,9 +1,9 @@
 import numpy as np
 from typing import Union
 
-from src.utils.linalg import nsqrtm, mhalf
+from src.utils.linalg import nsqrtm, mhalf, overlap_to_sq_trigs, symmetric_pinv
 
-def cca_from_cov_mat(Sig, m, zero_cut_off: Union[float, None] = None):
+def cca_from_cov_mat(Sig, p, zero_cut_off: Union[float, None] = None):
     """
     Returns (U,V,R) where the columns of U and V are the canonical directions and R is the vector of canonical correlations
     Uses np.linalg.inv and np.linalg.svd and np.linalg.eigh to implement via the SVD formulation of CCA
@@ -11,7 +11,7 @@ def cca_from_cov_mat(Sig, m, zero_cut_off: Union[float, None] = None):
     zero_cut_off some float turns columns of U,V corresponding to very small correlations to zero...
     """
 
-    Sigxx, Sigxy, Sigyx, Sigyy = Sig[:m, :m], Sig[:m, m:], Sig[m:, :m], Sig[m:, m:]
+    Sigxx, Sigxy, Sigyx, Sigyy = Sig[:p, :p], Sig[:p, p:], Sig[p:, :p], Sig[p:, p:]
 
     nSigxx, nSigyy = nsqrtm(Sigxx), nsqrtm(Sigyy)
     # Target_M = np.linalg.inv(sqrtm(Sigxx))@Sigxy@np.linalg.inv(sqrtm(Sigyy))
@@ -107,6 +107,80 @@ def can_corr_subs(cov_mat,K,agg='sq'):
         if agg == 'sq': return np.sum(R**2)
         elif agg == 'sum': return np.sum(R)
     return np.array([get_corr(k) for k in range(1,K+1)])
+
+def oracle_overlap(U,V,Sig):
+    """Improved version; will copy over docstring later"""
+    # assert that dimensions are consistent
+    p,K = U.shape
+    q,K2 = V.shape
+    assert K==K2
+    assert Sig.shape == (p+q,p+q)
+    # separate into within and between view block covariances
+    Sigxx,Sigxy,Sigyx,Sigyy = Sig[:p,:p],Sig[:p,p:],Sig[p:,:p],Sig[p:,p:]
+    def upper_cholesky(A):
+        """Return upper triangular matrix R such that A = R @ R.T
+        To do so, reverse order of columns, compute cholesky, reverse back"""
+        reversed_A = A[::-1,::-1]
+        reversed_R = np.linalg.cholesky(reversed_A)
+        return reversed_R[::-1,::-1] 
+    
+    # get this 'upper-cholesky' decomposition of within-view precision matrices
+    Ru = upper_cholesky(symmetric_pinv(U.T @ Sigxx @ U))
+    Rv = upper_cholesky(symmetric_pinv(V.T @ Sigyy @ V))
+
+    return Ru.T @ (U.T @ Sigxy @ V) @ Rv
+
+def oracle_overlap_old(U,V,Sig):
+    """Return the target matrix for SVD for CCA with successive-subspace property
+    Parameters:
+    U: ndarray, shape (p,K)
+    V: ndarray, shape (q,K)
+    Sig: ndarray, shape (p+q,p+q)"""
+
+    # assert that dimensions are consistent
+    p,K = U.shape
+    q,K2 = V.shape
+    assert K==K2
+    assert Sig.shape == (p+q,p+q)
+
+    # separate into within and between view block covariances
+    Sigxx,Sigxy,Sigyx,Sigyy = Sig[:p,:p],Sig[:p,p:],Sig[p:,:p],Sig[p:,p:]
+
+    def upper_cholesky(A):
+        """Return upper triangular matrix R such that A = R @ R.T
+        To do so, reverse order of columns, compute cholesky, reverse back"""
+        reversed_A = A[::-1,::-1]
+        reversed_R = np.linalg.cholesky(reversed_A)
+        return reversed_R[::-1,::-1]    
+    try: 
+        # get this 'upper-cholesky' decomposition of within-view precision matrices
+        Ru = upper_cholesky(symmetric_pinv(U.T @ Sigxx @ U))
+        Rv = upper_cholesky(symmetric_pinv(V.T @ Sigyy @ V))
+        return Ru.T @ (U.T @ Sigxy @ V) @ Rv
+    except:
+        # save the offending matrices for debugging
+        np.save('Mx.npy', U.T @ Sigxx @ U)
+        np.save('My.npy', V.T @ Sigyy @ V)
+        #print(np.linalg.pinv(V.T @ Sigyy @ V,hermitian=True).round(3))
+        for M in (U.T @ Sigxx @ U, V.T @ Sigyy @ V):
+            w, v = np.linalg.eigh(M)
+            print('Min strictly less than zero?', min(w) < 0)
+            print('Approximately symmetric?', np.allclose(M,M.T))
+    # so Ru is upper triangular matrix such that Ru.T @ Ru = (U.T @ Sigxx @ U)^{-1}
+    # so U @ Ru has Sigxx-orthonormal columns
+    # moreover, the span of first k columns of U@Ru is the same as the span of first k columns of U
+    # (we've effectively done Gram-Schmidt in the Sigxx inner product)
+
+    # to get the target matrix quicker to evaluate multiplications as below (K << p,q)
+    
+
+def oracle_cos2thetas(U,V,Sig):
+    """Compute successive subspace cos2thetas from given projection matrices"""
+    # get target matrix
+    target = oracle_overlap(U,V,Sig)
+    # compute cos2thetas
+    return overlap_to_sq_trigs(target,mode='cos')
+
 
 
 # INITIALISATION FOR SCCA

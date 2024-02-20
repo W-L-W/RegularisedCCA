@@ -8,6 +8,8 @@ from .cca import (
     soft_threshold,
     suo_init_K,
     suo_init,
+    data_from_covariance,
+    oracle_cos2thetas,
 )
 
 from .linalg import (

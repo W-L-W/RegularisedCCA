@@ -64,14 +64,14 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
     # extract relevant information from dfcvfull
     # note inds is zero indexed, while rhos are 1 indexed so need to convert
     # (this gave me a nasty bug for a while, careful if modifying!)
-    rhos = ['rho'+str(k) for k in range(1,cv_object.R)]
+    rhos = ['rho'+str(k) for k in range(1,cv_object.K)]
     cols_of_interest = ['pen']+rhos
     df = dfcvfull[cols_of_interest].copy().set_index('pen')
     
     # penalty is the index column so won't be transformed by nice_fn (which is good)
     # first apply f, then cumulative sum, and only then do the groupby
     df = df.apply(nice_fn)
-    df.columns = [legend_prefix+str(k) for k in range(1,cv_object.R)]
+    df.columns = [legend_prefix+str(k) for k in range(1,cv_object.K)]
     
     df_cumsum = df.apply(lambda x: x.cumsum(), axis=1)
     df_sum_f_av = df_cumsum.groupby(level=0).agg([np.mean,np.std])

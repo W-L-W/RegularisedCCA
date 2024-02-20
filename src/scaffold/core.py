@@ -60,9 +60,7 @@ class SolutionPath():
         self.data = data
         self.algo = algo
         self.K = K
-        print(type(self), 'Trying to create estimate folder')
         self.estimate_folder = self._create_estimate_folder()
-        print('Hopefully created estimate folder at', self.estimate_folder)
         try:
             _,meta = self.load_ests_n_meta()
             self.pens_fitted = set(meta['pen'])
@@ -79,9 +77,7 @@ class SolutionPath():
     
     def _estimate_filename(self, output_type = 'weights'):
         if output_type == 'weights':
-            print(self.estimate_folder)
             name = self.estimate_folder + f'K{self.K}_{self.algo}_W.csv'
-            print(name)
             return name
         elif output_type == 'meta data':
             return self.estimate_folder + f'K{self.K}_{self.algo}_meta.csv'
@@ -134,13 +130,10 @@ class SolutionPath():
         return print(f'saved to {file_name}')
 
     def load_ests_n_meta(self):
-        print('Data folder: ', self.data.folder)
         file_name = self._estimate_filename('weights')
-        print(file_name)
         stored_ests = np.array(pd.read_csv(file_name,header=None))
 
         file_name = self._estimate_filename('meta data')
-        print('Attempting to read metadata file at', file_name)
         meta = pd.read_csv(file_name,index_col=0)
 
         return stored_ests,meta
@@ -437,9 +430,8 @@ class Solution():
 class MVNCV(CV):
     def __init__(self,data,folds,algo,K):
         super().__init__(data,folds,algo,K)
-        print('all good to this point')
         self.full_path = MVNSolPath(data,algo,K)
-        # note that full path fitted by default in parent CV object when fit_algo is called
+        # note that full path fitted by default from parent CV init method when fit_algo is called
 
     def process_oracle(self):
         self.full_path.process_estimates()

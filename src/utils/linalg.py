@@ -21,10 +21,17 @@ def _masked_power(vec: Vector, power: float, atol: float =10**-6, rgln: float = 
     w[~mask] = rgln
     return w
 
+def enforce_genuinely_non_negative(vec: Vector, atol: float =10**-6, msg: str = ''):
+    """Check that any negative entries of vector have magnitude less than atol and replace these with zeros"""
+    assert np.isclose(vec[vec < 0], 0).all(), msg
+    vec2 = vec.copy()
+    vec2[vec < 0] = 0
+    return vec2
+
 def mhalf(vec: Vector):
     """Raise elements of a non-negative vector to the power of (-1/2), leaving zero entries as zero"""
     # this masking implementation was significantly faster than using np.vectorize on large vectors
-    assert (vec >= 0).all(), 'Input to square root must be non-negative'
+    vec = enforce_genuinely_non_negative(vec, msg ='Input to square root must be non-negative')
     return _masked_power(vec, -0.5)
 
 def sqrtm(M: PSDMatrix):
@@ -41,7 +48,7 @@ def symmetric_pinv(M: SymMatrix, rgln: float = 10**-8):
     (np.linalg.pinv gave me non-positive inverses)"""
     w, v = np.linalg.eigh(M)
     w_inv = _masked_power(w, power=-1, rgln=rgln)
-    return v@ np.diag(w) @v.T
+    return v@ np.diag(w_inv) @v.T
 
 def isPSD(B: Matrix):
     la = np.linalg
@@ -84,11 +91,37 @@ def sin2theta(A: Matrix,B: Matrix):
 
     return k - np.linalg.norm(A_GS.T @ B_GS,ord='fro')**2
 
-def sin2theta_mult(A: Matrix, B: Matrix):
-    """Return 1D array of successive sin2theta values between successive column-spaces of A,B"""
-    return sq_trigs(A,B,trig_fn='sin')
+def sin2theta_mult(A: Matrix, B: Matrix, succ_mode = 'subsp', rel: Union[None, PSDMatrix] = None, sqrt=True):
+    """Compute multiple sin2theta distances between two matrices
+    
+    Parameters
+    ----------
+    A, B : ndarrays, each of shape (p,K)
 
-def sq_trigs(A: Matrix, B: Matrix, trig_fn='cos', succ_mode='indiv'):
+    succ_mode : {'subsp','indiv'}, optional
+        If 'subsp', compute the sin2thetas between subspaces spanned by the first k columns of A and B. 
+        If 'indiv', compute the sin2thetas between successive pairs of columns of A and B.
+    
+    rel : ndarray, shape (p,p), optional
+        If provided, first rescale A and B by rel before computing sin2thetas. 
+    sqrt : bool, optional
+        If True, take matrix square root of rel before rescaling, i.e. for variate space
+        Else, do not take matrix square root of rel, i.e. for loading space
+    """
+    K = A.shape[1]
+
+    if rel is None:
+        return sq_trigs(A, B, trig_fn='sin', succ_mode=succ_mode)
+    elif (rel is not None) and sqrt==True:
+        relsqrt = sqrtm(rel)
+        return sin2theta_mult(relsqrt@A,relsqrt@B,succ_mode=succ_mode,rel=None)
+    elif (rel is not None) and sqrt==False:
+        return sin2theta_mult(rel@A,rel@B,succ_mode=succ_mode,rel=None)
+    else:
+        print('rel should be None or PSDMatrix (ndarray), sqrt should be Boolean')
+
+
+def sq_trigs(A: Matrix, B: Matrix, trig_fn='cos', succ_mode='subsp'):
     """Compute successive cos/sin2theta values between successive column-spaces of two matrices
     
     Parameters

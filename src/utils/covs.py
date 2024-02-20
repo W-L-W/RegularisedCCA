@@ -17,8 +17,8 @@ def joint_cov_from_within_view_covs_and_candidate_directions(
     assert Sigxx.shape == (p,p) and Sigyy.shape == (q,q)
     assert U_cand.shape == (p,K) and V_cand.shape == (q,K)
 
-    U = gram_schmidt(U,Sigxx)
-    V = gram_schmidt(V,Sigyy)    
+    U = gram_schmidt(U_cand, Sigxx)
+    V = gram_schmidt(V_cand, Sigyy)    
 
     Sigxy = Sigxx @ U @ R @ V.T @ Sigyy
     Sigyx = Sigxy.transpose()

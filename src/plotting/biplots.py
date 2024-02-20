@@ -12,7 +12,7 @@ from plotly.subplots import make_subplots
 
 
 # internal imports
-from src.scaffold.interface import algo_labels, get_cv_obj_from_data, get_cv_object, get_dataset
+from src.scaffold.incoming import algo_labels, get_cv_obj_from_data, get_cv_object, get_dataset
 from src import utils
 
 def gen_circle():
