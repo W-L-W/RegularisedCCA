@@ -6,11 +6,24 @@
     This will require figuring out how to save plots effectively
     And further experimentation with gitignore template matching
 
-
 # Later tasks:
 - Add a test that creates synthetic covariance and check that CCA function recovers desired structure
 - What are the different types of plot that need to be fitted into the new framework?
 
+# Wed 14th Feb; Planning
+The notes above do seem reasonable. Review the code base and get a better feel about how to implement these.
+Checked with the results in the document and cvm3 is indeed CV minus factor of 3 as hoped.
+So now need code to fit / run...
+Important material seems to be in oop_utils; compute everything and setting
+Some untidiness of distribution of code between wrappers and synthetic - will need to review that at some point but worth cracking on for now to get a better idea of what to deal with
+
+Recall that for now want to produce minimal quantity of plots required for essay.  
+This is what is required for the `essay.ipynb` file; so can work through that!
+Yes, got the assertion error that I was hoping for. Happy days.
+
+
+# Some-day maybe
+- Fun reading: https://medium.com/brexeng/avoiding-circular-imports-in-python-7c35ec8145ed
 
 # Archival Notes
 ## Plot classification
