@@ -60,23 +60,33 @@ class SolutionPath():
         self.data = data
         self.algo = algo
         self.K = K
-        self.folder = self._create_folder_name()
+        print(type(self), 'Trying to create estimate folder')
+        self.estimate_folder = self._create_estimate_folder()
+        print('Hopefully created estimate folder at', self.estimate_folder)
         try:
             _,meta = self.load_ests_n_meta()
             self.pens_fitted = set(meta['pen'])
         except FileNotFoundError:
+            print('File not found error!!! Now proceeding')
             self.pens_fitted = set()
+        # Previously this try except block made it difficult to debug an error; TODO think about how to implement same functionality
+        # without try except so that easier to debug in future
 
-    def _create_folder_name(self):
+    def _create_estimate_folder(self):
         folder_name = self.data.folder + 'estimates/'
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
-    def _filename(self, output_type = 'weights'):
+    def _estimate_filename(self, output_type = 'weights'):
         if output_type == 'weights':
-            return self.folder + f'K{self.K}_{self.algo}_W.csv'
+            print(self.estimate_folder)
+            name = self.estimate_folder + f'K{self.K}_{self.algo}_W.csv'
+            print(name)
+            return name
         elif output_type == 'meta data':
-            return self.folder + f'K{self.K}_{self.algo}_meta.csv'
+            return self.estimate_folder + f'K{self.K}_{self.algo}_meta.csv'
+        else:
+            raise ValueError(f'output_type {output_type} not recognised')
 
     def _already_fitted(self,pen):
         return sum([np.isclose(pen,penb,rtol=1e-03, atol=1e-06) for penb in self.pens_fitted])
@@ -108,7 +118,7 @@ class SolutionPath():
         Ue,Ve are pxK, qxK resp, single n,rs; can have different penalties in list pens,
         Warning: I've removed the cv column in meta!!!
         """
-        file_name = self._filename('weights')
+        file_name = self._estimate_filename('weights')
         ests_to_csv(Ue,Ve,file_name)
 
         d = self.data  # will access many attributes so convenient to abbreviate
@@ -116,7 +126,7 @@ class SolutionPath():
         vals = [d.p,d.q,d.n,pens,range(self.K),te]
         meta_df = pd.DataFrame(dict(zip(keys,vals)))
         if type(d) == MVNData: meta_df['rs'] = d.rs
-        file_name = self._filename('meta data')
+        file_name = self._estimate_filename('meta data')
         # want to be able to add more estimates if only poor penalty parameters fitted on the first attempt
         # therefore if file already exists then want to append without header
         headerq = not os.path.exists(file_name)
@@ -124,10 +134,13 @@ class SolutionPath():
         return print(f'saved to {file_name}')
 
     def load_ests_n_meta(self):
-        file_name = self._filename('weights')
+        print('Data folder: ', self.data.folder)
+        file_name = self._estimate_filename('weights')
+        print(file_name)
         stored_ests = np.array(pd.read_csv(file_name,header=None))
 
-        file_name = self._filename('meta data')
+        file_name = self._estimate_filename('meta data')
+        print('Attempting to read metadata file at', file_name)
         meta = pd.read_csv(file_name,index_col=0)
 
         return stored_ests,meta
@@ -186,7 +199,7 @@ class CV():
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
-    def _filename(self, output_type = 'cv full'):
+    def _summary_filename(self, output_type = 'cv full'):
         output_type_encoder = {
             'cv full': 'cv_full',
             'cv averages': 'cv_av',
@@ -197,12 +210,12 @@ class CV():
         return self.summary_folder + f'K{self.K}_{self.algo}_{encoded}.csv'
 
     def load_summary(self, output_type = 'cv full'):
-        file_name = self._filename(output_type)
+        file_name = self._summary_filename(output_type)
         # the styling required to read csv depends on the output type
         # (based on the default behaviour of pd.to_csv for arrays with different indices)
         # may need to be updated if the code for creating / saving summary dataframes is changed
         read_styling = {
-            'cv_full': {'header': 'infer', 'index_col': None},
+            'cv full': {'header': 'infer', 'index_col': None},
             'cv averages': {'header': [0,1], 'index_col': 0},
             'instability full': {'header': [0,], 'index_col': 0},
             'instability averages': {'header': [0,1], 'index_col': 0},
@@ -214,7 +227,7 @@ class CV():
         X,Y = self.data.X,self.data.Y
         for fold,split in enumerate(kf.split(X,Y)):
             train_ids,test_ids = split
-            folder_name = self.data.folder + f'/cv{fold}of{self.folds}'
+            folder_name = self.data.folder + f'cv{fold}of{self.folds}/'
             X_labs = self.data.X_labs
             Y_labs = self.data.Y_labs
             train_data = Data(X[train_ids],Y[train_ids],folder_name=folder_name,
@@ -232,6 +245,7 @@ class CV():
         for split in self.splits.values():
             soln_path = SolutionPath(split.train_data,self.algo,self.K)
             soln_path.fit_path(pen_list)
+            print('fitted split')
 
 
     def process_cv(self,update=True):
@@ -298,12 +312,13 @@ class CV():
         if update:
             dfcv_full = pd.concat([dfcv_full_old,dfcv_full])
 
-        file_name = self._filename('cv full')
+        file_name = self._summary_filename('cv full')
+        print('Attempting to save CV full summary at', file_name)
         dfcv_full.to_csv(file_name,index=False)
 
         dfcv_avgd = (dfcv_full.drop(columns=['cv'])
                              .groupby(['pen']).agg([np.mean,np.std]))
-        file_name = self._filename('cv averages')
+        file_name = self._summary_filename('cv averages')
         dfcv_avgd.to_csv(file_name)
 
     def get_pen_list(self):
@@ -329,65 +344,67 @@ class CV():
                 pens_to_process = self.get_pen_list()
         else:
             pens_to_process = self.get_pen_list()
+
+        if len(pens_to_process) == 0:
+            print('No new penalties to process')
+        else:            
+            folds = self.folds
+            fold_pairs = [(i,j) for i in range(folds) for j in range(folds) if i<j]
+
+            def get_sol(fold,pen):
+                train_data = self.splits[fold].train_data
+                train_solp = SolutionPath(train_data,self.algo,self.K)
+                Ue,Ve,_ = train_solp.load_est_n_t(pen)
+                return Solution(train_data,Ue,Ve)
+
+            def stab_objs(sol1,sol2):
+                """For Solution objects sol1,sol2, compute certain stability objectives 
+                (see 'dct=...' in code for objectives; think these are pretty comprehensive)
+                (later will think about custom objectives if needed)
+                """
+                # will compute weight and variate multiple sin-theta distances
+                U1,V1 = sol1.Ue,sol1.Ve
+                U2,V2 = sol2.Ue,sol2.Ve
+                K = U1.shape[1]
+                # can access full dataset via the CV object's self.data attribute
+                X,Y = self.data.X,self.data.Y
+                dct = {'wt_U': utils.sin2theta_mult(U1,U2),
+                    'wt_V': utils.sin2theta_mult(V1,V2),
+                    'vt_U': utils.sin2theta_mult(X @ U1, X @ U2),
+                    'vt_V': utils.sin2theta_mult(Y @ V1, Y @ V2),}
+                dct = OrderedDict(dct)
+                # copied from process_estimates
+                def column_labels(label):
+                    return list(map(lambda k: label+str(k+1),range(K)))
+                # now make the dataframe
+                row_out = np.block([dct[key] for key in dct])
+                columns = np.concatenate([column_labels(key) for key in dct])
+                df = pd.DataFrame(row_out.reshape(1,-1),columns=columns)
+                return df
             
-        folds = self.folds
-        fold_pairs = [(i,j) for i in range(folds) for j in range(folds) if i<j]
+            def stabs(fold_pair,pen):
+                """Return single row dataframe with stability scores for each objective"""
+                sol1 = get_sol(fold_pair[0],pen)
+                sol2 = get_sol(fold_pair[1],pen)
+                df_row = stab_objs(sol1,sol2)
+                df_row['pen'] = pen
+                df_row['fold_pair'] = str(fold_pair)
+                return df_row
+            
+            df_list = [stabs(fold_pair,pen) for pen in pens_to_process for fold_pair in fold_pairs]
+            df_full = pd.concat(df_list)
 
-        def get_sol(fold,pen):
-            train_data = self.splits[fold].train_data
-            train_solp = SolutionPath(train_data,self.algo,self.K)
-            Ue,Ve,_ = train_solp.load_est_n_t(pen)
-            return Solution(train_data,Ue,Ve)
+            if new_pens_only:
+                df_full = pd.concat([dfstabfull_old,df_full])
 
-        def stab_objs(sol1,sol2):
-            """For Solution objects sol1,sol2, compute certain stability objectives 
-            (see 'dct=...' in code for objectives; think these are pretty comprehensive)
-            (later will think about custom objectives if needed)
-            """
-            # will compute weight and variate multiple sin-theta distances
-            U1,V1 = sol1.Ue,sol1.Ve
-            U2,V2 = sol2.Ue,sol2.Ve
-            K = U1.shape[1]
-            # can access full dataset via the CV object's self.data attribute
-            X,Y = self.data.X,self.data.Y
-            dct = {'wt_U': utils.sin_theta_mult(U1,U2),
-                   'wt_V': utils.sin_theta_mult(V1,V2),
-                   'vt_U': utils.sin_theta_mult(X @ U1, X @ U2),
-                   'vt_V': utils.sin_theta_mult(Y @ V1, Y @ V2),}
-            dct = OrderedDict(dct)
-            # copied from process_estimates
-            def column_labels(label):
-                return list(map(lambda k: label+str(k+1),range(K)))
-            # now make the dataframe
-            row_out = np.block([dct[key] for key in dct])
-            columns = np.concatenate([column_labels(key) for key in dct])
-            df = pd.DataFrame(row_out.reshape(1,-1),columns=columns)
-            return df
-        
-        def stabs(fold_pair,pen):
-            """Return single row dataframe with stability scores for each objective"""
-            sol1 = get_sol(fold_pair[0],pen)
-            sol2 = get_sol(fold_pair[1],pen)
-            df_row = stab_objs(sol1,sol2)
-            df_row['pen'] = pen
-            df_row['fold_pair'] = str(fold_pair)
-            return df_row
-        
-        # potential for easy parallelization, but for now will do with base python
-        df_list = [stabs(fold_pair,pen) for pen in pens_to_process for fold_pair in fold_pairs]
-        df_full = pd.concat(df_list)
+            file_name = self._summary_filename('instability full')
+            df_full.to_csv(file_name)
 
-        if new_pens_only:
-            df_full = pd.concat([dfstabfull_old,df_full])
-
-        file_name = self._filename('instability full')
-        df_full.to_csv(file_name)
-
-        dfstabav = (df_full.drop(columns=['fold_pair'])
-                           .groupby(['pen']).agg([np.mean,np.std]))
-        file_name = self._filename('instability averages')
-        dfstabav.to_csv(file_name)
-        return dfstabav
+            dfstabav = (df_full.drop(columns=['fold_pair'])
+                            .groupby(['pen']).agg([np.mean,np.std]))
+            file_name = self._summary_filename('instability averages')
+            dfstabav.to_csv(file_name)
+            return dfstabav
 
     def get_best_pen(self,objective='rhosum5'):
         # be careful to call this with an objective that has actually been fitted already!
@@ -416,18 +433,15 @@ class Solution():
         self.Ue = Ue
         self.Ve = Ve
         self.tup = (self.Ue,self.Ve,self.data.X,self.data.Y)
-        #print(f'in sol class Ue[0,0] {Ue[0,0]}')
-
 
 class MVNCV(CV):
     def __init__(self,data,folds,algo,K):
         super().__init__(data,folds,algo,K)
+        print('all good to this point')
         self.full_path = MVNSolPath(data,algo,K)
+        # note that full path fitted by default in parent CV object when fit_algo is called
 
-    def fit_full(self,pen_list):
-        self.full_path.fit_path(pen_list)
-
-    def process_full(self):
+    def process_oracle(self):
         self.full_path.process_estimates()
 
     def load_dffull(self):
@@ -448,7 +462,7 @@ class MVNSolPath(SolutionPath):
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
-    def _filename(self, output_type = 'oracle'):
+    def _summary_filename(self, output_type = 'oracle'):
         if output_type == 'oracle full':
             return self.summary_folder + f'K{self.K}_{self.algo}_oracle.csv'
 
@@ -458,24 +472,24 @@ class MVNSolPath(SolutionPath):
         Sig = self.data.mvn.Sig
         Ue,Ve,te = self.load_est_n_t(pen)
         p,K = Ue.shape[:2]
-        U,V,D = utils.ccs_from_covariance(Sig,p)
+        U,V,_ = utils.cca_from_cov_mat(Sig,p)
         true_cor_mat = utils.true_cor_mat(Ue,Ve,Sig)
 
         # next match strings to values:
         dct = {'rho': np.diag(true_cor_mat),
                'R2s': utils.oracle_cos2thetas(Ue,Ve,Sig),
-               'wt_u': utils.sin_theta_mult(Ue,U[:,:K],mode='successive'),
-               'wt_v': utils.sin_theta_mult(Ve,V[:,:K],mode='successive'),
-               'vt_u': utils.sin_theta_mult(Ue,U[:,:K],mode='successive',rel=Sig[:p,:p]),
-               'vt_v': utils.sin_theta_mult(Ve,V[:,:K],mode='successive',rel=Sig[p:,p:]),
-               'ld_u': utils.sin_theta_mult(Ue,U[:,:K],mode='successive',rel=Sig[:p,:p],sqrt=False),
-               'ld_v': utils.sin_theta_mult(Ve,V[:,:K],mode='successive',rel=Sig[p:,p:],sqrt=False),
-               'wt_U': utils.sin_theta_mult(Ue,U[:,:K]),
-               'wt_V': utils.sin_theta_mult(Ve,V[:,:K]),
-               'vt_U': utils.sin_theta_mult(Ue,U[:,:K],rel=Sig[:p,:p]),
-               'vt_V': utils.sin_theta_mult(Ve,V[:,:K],rel=Sig[p:,p:]),
-               'ld_U': utils.sin_theta_mult(Ue,U[:,:K],rel=Sig[:p,:p],sqrt=False),
-               'ld_V': utils.sin_theta_mult(Ve,V[:,:K],rel=Sig[p:,p:],sqrt=False),
+               'wt_u': utils.sin2theta_mult(Ue,U[:,:K],succ_mode='indiv'),
+               'wt_v': utils.sin2theta_mult(Ve,V[:,:K],succ_mode='indiv'),
+               'vt_u': utils.sin2theta_mult(Ue,U[:,:K],succ_mode='indiv',rel=Sig[:p,:p]),
+               'vt_v': utils.sin2theta_mult(Ve,V[:,:K],succ_mode='indiv',rel=Sig[p:,p:]),
+               'ld_u': utils.sin2theta_mult(Ue,U[:,:K],succ_mode='indiv',rel=Sig[:p,:p],sqrt=False),
+               'ld_v': utils.sin2theta_mult(Ve,V[:,:K],succ_mode='indiv',rel=Sig[p:,p:],sqrt=False),
+               'wt_U': utils.sin2theta_mult(Ue,U[:,:K]),
+               'wt_V': utils.sin2theta_mult(Ve,V[:,:K]),
+               'vt_U': utils.sin2theta_mult(Ue,U[:,:K],rel=Sig[:p,:p]),
+               'vt_V': utils.sin2theta_mult(Ve,V[:,:K],rel=Sig[p:,p:]),
+               'ld_U': utils.sin2theta_mult(Ue,U[:,:K],rel=Sig[:p,:p],sqrt=False),
+               'ld_V': utils.sin2theta_mult(Ve,V[:,:K],rel=Sig[p:,p:],sqrt=False),
                }
         dct = OrderedDict(dct)
 
@@ -491,9 +505,10 @@ class MVNSolPath(SolutionPath):
         return df
 
     def process_estimates(self):
+        assert len(self.pens_fitted) > 0, f'No penalties fitted yet for {str(self)}'
         single_rows = [self._process_estimate(pen) for pen in self.pens_fitted]
         dffull = pd.concat(single_rows)
-        file_name = self._filename('oracle')
+        file_name = self._summary_filename('oracle')
         dffull.to_csv(file_name,index=False)
         return dffull
 
@@ -502,7 +517,7 @@ class MVNSolPath(SolutionPath):
         self.process_estimates()
 
     def load_dffull(self):
-        file_name = self._filename('oracle')
+        file_name = self._summary_filename('oracle')
         return pd.read_csv(file_name).sort_values(by='pen')
 
 
@@ -521,14 +536,17 @@ class MVNData(Data):
 
 
 class MVNDist():
-    def __init__(self,p,q,Sig,cov_desc=None):
+    def __init__(self,Sig,p,q=None,cov_desc=None):
         self.p = p
-        self.q = q
         self.Sig = Sig
-        self._check_dims_consistent()
+        if q is not None:
+            self.q = q
+            self._check_dims_consistent()
+        else:
+            self.q = Sig.shape[0] - p
 
         self.cov_desc=cov_desc
-        self.U,self.V,self.D = utils.ccs_from_covariance(Sig,p)
+        self.U,self.V,self.D = utils.cca_from_cov_mat(Sig,p)
 
     def _check_dims_consistent(self):
         msg = 'Sig must be square with dims (p+q) x (p+q)'
@@ -541,8 +559,9 @@ class MVNDist():
 
     def _get_folder_name(self,rs,n):
         # previously noted useful for metric_plotter #TODO check used there and delete if not
-        name = mvn_folder_name(self.cov_desc, self.p, self.q, n, rs)
-        return mvn_folder_name(self,rs,n)
+        name =  mvn_folder_name(self.cov_desc, self.p, self.q, n, rs)
+        return name
+         
 
 
 class MVNFactory():

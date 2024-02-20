@@ -24,8 +24,10 @@ def test_sq_trigs():
     thetas = np.array([np.pi/7, np.pi/5])
     B = np.block([[np.diag(np.cos(thetas))], [np.diag(np.sin(thetas))]])
 
-    out = sq_trigs(A,B, mode='cos')
-    assert np.allclose(out, np.cumsum([np.cos(thetas)**2]))
+    assert np.allclose(sq_trigs(A, B, trig_fn='cos', succ_mode='subsp'), 
+                       np.cumsum([np.cos(thetas)**2]))
+    assert np.allclose(sq_trigs(A, B, trig_fn='cos', succ_mode='indiv'),
+                       np.cos(thetas)**2)
 
 
 

@@ -86,9 +86,9 @@ def sin2theta(A: Matrix,B: Matrix):
 
 def sin2theta_mult(A: Matrix, B: Matrix):
     """Return 1D array of successive sin2theta values between successive column-spaces of A,B"""
-    return sq_trigs(A,B,mode='sin')
+    return sq_trigs(A,B,trig_fn='sin')
 
-def sq_trigs(A: Matrix, B: Matrix, mode='cos'):
+def sq_trigs(A: Matrix, B: Matrix, trig_fn='cos', succ_mode='indiv'):
     """Compute successive cos/sin2theta values between successive column-spaces of two matrices
     
     Parameters
@@ -97,8 +97,10 @@ def sq_trigs(A: Matrix, B: Matrix, mode='cos'):
         First matrix of K columns
     B : ndarray, shape (p,K)
         Second matrix of K columns
-    mode : {'cos','sin'}, optional
+    trig_fn : {'cos','sin'}, optional
         Whether to return cos2 theta or sin2 theta, by default 'cos'
+    succ_mode : {'indiv', 'subsp'}, optional
+        Whether to return sq trig for successive (individual) kth pairs or successive top-k subspaces
     """
     if len(A.shape)==1:
         A = A.reshape(-1,1)
@@ -106,20 +108,29 @@ def sq_trigs(A: Matrix, B: Matrix, mode='cos'):
         B = B.reshape(-1,1)
     assert len(A.shape)==len(B.shape)==2
     assert A.shape[0] == B.shape[0]
-    n,K = A.shape
 
-    A_GS,_ = np.linalg.qr(A)
-    B_GS,_ = np.linalg.qr(B)
+    if succ_mode == 'indiv':
+        def normalised(A):
+            return A / np.linalg.norm(A,axis=0)
+        An = normalised(A)
+        Bn = normalised(B)
+        cos2thetas = (An * Bn).sum(axis=0)**(2)
+        return cos2thetas if trig_fn=='cos' else 1 - cos2thetas
 
-    # take element-wise square of matrix of inner products
-    return overlap_to_sq_trigs(A_GS.T @ B_GS,mode=mode)
+    elif succ_mode == 'subsp':
+        A_GS,_ = np.linalg.qr(A)
+        B_GS,_ = np.linalg.qr(B)
+        return overlap_to_sq_trigs(A_GS.T @ B_GS,mode=trig_fn)
+
+    else:
+        raise ValueError('succ_mode must be one of "indiv", "subsp"')
     
 def overlap_to_sq_trigs(overlap: SqMatrix, mode='cos'):
     """Converts overlap matrix to squared cosines or sines of canonical angles
     Parameters:
     overlap: ndarray, shape (K,K)
         (might want to make non-square later but should be fine for now)
-    mode: {'cos','sin'}
+    trig_fn: {'cos','sin'}
     """
     sq_overlap = overlap**2
     K = overlap.shape[0]

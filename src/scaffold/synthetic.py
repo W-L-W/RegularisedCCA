@@ -1,39 +1,49 @@
-# Think intention here was to copy over the block of code from oop_utils starting with 'Setting' class
-# TODO work through that!
-from src.scaffold.wrappers import get_dataset
+# All functions building on top of core.py and used for generating or analysing synthetic data
+import numpy as np
+import pandas as pd
+import os
+
+from src.scaffold.wrappers import get_dataset, cov_type_to_fac, compute_everything
+from src.scaffold.core import MVNCV, MVNDist
 from src.algos import first_K_ccs_lazy
 from src.utils import gram_schmidt
-import numpy as np
-import os
 
 from real_data.loading import pboot_filename
 
-# and dictionary to determine behaviour of parametric bootstrap
-# currently copied over manually from previous experiment runs
-# TODO: have a more systematic way to determine penalty settings
-# for now used factor of 3 smaller penalty than cv optimal
+
+# PARAMETRIC BOOTSTRAP
+######################
+
+# dictionary to determine behaviour of parametric bootstrap
 bootstrap_params = {
     ('nutrimouse','ridge','cvm3'): {'ridge': 0.066},
     ('nutrimouse', 'gglasso', 'cvm3'): {'pen': 0.0066},
     ('nutrimouse', 'suo_ridge', 'cvm3'): {'pen': 0.026, 'K': 10, 'ridge': 0.01},
 }
-# note still to be finished - need to implement the main function before doing any more like this
+# currently copied over manually from previous experiment runs
+# TODO: have a more systematic way to determine penalty settings
+# for now used factor of 3 smaller penalty than cv optimal
 
 def save_pboot_cov(dataset:str, regn:str, regn_mode:str):
-    Sig = gen_parametric_bootstrap_cov(dataset, regn, regn_mode)
-    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov')
+    p, Sig = gen_parametric_bootstrap_cov(dataset, regn, regn_mode)
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.npz')
     # make directory if it doesn't exist already
     directory = os.path.dirname(filename)
     if not os.path.exists(directory):
         os.makedirs(directory)
-    np.save(filename, Sig)
+    np.savez(filename, p=p, Sig=Sig)
 
-def load_pboot_cov(dataset:str, regn:str, regn_mode:str):
-    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov')
-    Sig = np.load(filename)
-    return Sig
+def load_pboot_mvn(dataset:str, regn:str, regn_mode:str):
+    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.npz')
+    # if file does not exist, need to generate it first
+    if not os.path.exists(filename):
+        print('Covariance matrix file does not exist, so generating it now')
+        save_pboot_cov(dataset, regn, regn_mode)
+    npzfile = np.load(filename)
+    p, Sig = npzfile['p'], npzfile['Sig']
+    return MVNDist(Sig,p,cov_desc = f'pboot/{dataset}/{regn}_{regn_mode}')
 
-def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'):
+def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'): # -> Tuple[int, PSDMatrix]
     print('loading dataset')
     data = get_dataset(dataset)
     print('loaded dataset')
@@ -82,7 +92,96 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'):
         raise NotImplementedError()
     
     print('on to save')
-    return Sig
+    return p, Sig
+
+
+# CONVENIENT STRUCT FOR SYNTHETIC DATA
+#######################################
+# and utility functions exploiting this struct
+class Setting():
+    def __init__(self,cov_type,algo,p,q,n,folds,K): #,rss
+        self.cov_type = cov_type
+        self.algo = algo
+        self.p = p
+        self.q = q
+        self.n = n
+        self.folds = folds
+        self.K = K
+        #self.rss = rss
+        self.tuple = (cov_type,algo,p,q,n,folds,K)
+
+    def __str__(s):
+        return f'cov: {s.cov_type}, algo: {s.algo}, (p,q,n): {(s.p,s.q,s.n)}, folds: {s.folds}, K: {s.K}'#', rss: {s.rss}'
+
+def load_mvn_cv(setting,rs):
+    (cov_type,algo,p,q,n,folds,K) = setting.tuple
+    fac = cov_type_to_fac(cov_type)
+    mvn = fac.build_mvn(p,q)
+    data = mvn.gen_data(rs,n)
+    cv_obj = MVNCV(data,folds,algo,K)
+    return cv_obj
+
+def compute_everything_single_seed(setting,rs,pen_list):
+    """Well everything I care about for now..."""
+    cv_obj = load_mvn_cv(setting,rs)
+    compute_everything(cv_obj, pen_list)
+
+def load_metric_dfs(setting,rs):
+    cv_obj = load_mvn_cv(setting,rs)
+    df_full = cv_obj.load_dffull()
+    df_cvav = cv_obj.load_dfcvav()
+    return df_full, df_cvav
+
+def best_pen(df,obj_string,best='min'):
+    if best=='min':
+        return df.loc[df[obj_string].argmin(),'pen']
+    elif best=='max':
+        return df.loc[df[obj_string].argmax(),'pen']
+
+# Key improvement over previous version is the ability to merge the full and cv versions
+def best_pen_rows(setting,rs,pen_objs):
+    df_full,df_cvav = load_metric_dfs(setting,rs)
+    df_cv_means = df_cvav.xs('mean',axis=1, level=1, drop_level=True).reset_index()
+    
+    # combine into a single df which we give short name for convenience...
+    df = pd.merge(df_full,df_cv_means,on='pen',suffixes=['','_cv'])
+
+    # collect dict of best pens:
+    pen_dict = {objv: best_pen(df,objv,sign) for objv,sign in pen_objs.items()}
+    ## print(pen_dict['rho1'],pen_dict['rho1_cv']) #for debugging
+
+    #select corresponding rows
+    rows = [df[df['pen']==pen_dict[objv]] for objv in pen_objs.keys()]
+    df = pd.concat(rows)
+    df['pen_obj'] = pen_objs.keys()
+    df['min_or_max'] = pen_objs.values()
+    return df
+
+def av_best_pen_rows(setting,rss,pen_objs):
+    single_dfs = [best_pen_rows(setting,rs,pen_objs) for rs in rss]
+    df_comb = pd.concat(single_dfs)
+    df = df_comb.groupby(['pen_obj','min_or_max']).agg([np.mean,np.std]).reset_index()
+
+    for s,v in zip(['p','q','n'],[setting.p,setting.q,setting.n]):
+        df[s]=v
+    return df
+
+def select_values(df_best_rows,met):
+    """met is string of what metric you want to plot"""
+    vals = [(met,'mean'),(met,'std')]
+    df = df_best_rows.pivot(index='n',columns='pen_obj',values=vals)
+    df.columns = df.columns.set_levels(['mean','std'],level=0).set_names(met,level=0)
+    return df
+
+def vary_n_best_rows(algo,cov_type,p,q,folds,K,ns,rss,pen_objs):
+    settings = [Setting(cov_type,algo,p,q,n,folds,K) for n in ns]
+
+    comb_best_rows = [av_best_pen_rows(setting,rss,pen_objs) for setting in settings]
+
+    return pd.concat(comb_best_rows)
+
+
 
 if __name__ == '__main__':
-    save_pboot_cov('nutrimouse', 'gglasso', 'cvm3')
+    mvn = load_pboot_mvn('nutrimouse', 'gglasso', 'cvm3')
+    print(mvn.cov_desc)
