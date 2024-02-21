@@ -8,7 +8,8 @@ from sklearn.model_selection import KFold
 from collections import OrderedDict
 from typing import List
 
-from src.scaffold.incoming import mvn_folder_name, get_ests_n_time
+from src.scaffold.io_preferences import mvn_folder_name
+from src.algos import get_ests_n_time
 import src.utils as utils
 
 # # A word on motivation:
@@ -436,8 +437,8 @@ class MVNCV(CV):
     def process_oracle(self):
         self.full_path.process_estimates()
 
-    def load_dffull(self):
-        return self.full_path.load_summary('cv full')
+    def load_df_oracle(self):
+        return self.full_path.df_oracle()
 
 
 
@@ -499,16 +500,16 @@ class MVNSolPath(SolutionPath):
     def process_estimates(self):
         assert len(self.pens_fitted) > 0, f'No penalties fitted yet for {str(self)}'
         single_rows = [self._process_estimate(pen) for pen in self.pens_fitted]
-        dffull = pd.concat(single_rows)
+        df_oracle = pd.concat(single_rows)
         file_name = self._summary_filename('oracle')
-        dffull.to_csv(file_name,index=False)
-        return dffull
+        df_oracle.to_csv(file_name,index=False)
+        return df_oracle
 
     def fit_reprocess(self,pen_list):
         self.fit_path(pen_list)
         self.process_estimates()
 
-    def load_dffull(self):
+    def load_df_oracle(self):
         file_name = self._summary_filename('oracle')
         return pd.read_csv(file_name).sort_values(by='pen')
 

@@ -310,8 +310,8 @@ def side_by_side_misc_biplots(dataset,algo_pen_inds_tuples,ref_idx,vrt,         
                             subplot_titles=subplot_titles
                             )
         # Add in circles and diamonds at relevant thresholds
-        circle = utils.gen_circle()
-        diamond = utils.gen_diamond()
+        circle = gen_circle()
+        diamond = gen_diamond()
         for col in range(1,num_cols+1):
             fig.update_xaxes(scaleanchor = "y",scaleratio = 1,row=1,col=col)
             fig.add_trace(go.Scatter(x=circle['x'],y=circle['y'],name='|x|=1',line={'color':'blue'})
@@ -397,7 +397,7 @@ def biplot_3D(solp,pen,inds,
     # 2. create the figure and add the background traces 
     fig = go.Figure()
     if in_sphr:
-            sphere = utils.my_sphere(0,0,0,radius=thresh)
+            sphere = my_sphere(0,0,0,radius=thresh)
             fig.add_trace(sphere)
 
     # 3. add the traces of interest

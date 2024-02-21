@@ -286,3 +286,31 @@ def gram_schmidt(input: Union[List[Vector], Matrix], psd_mat: PSDMatrix) -> Unio
         vec_list = list(input.T)
         new_list = gram_schmidt(vec_list,psd_mat)
         return np.array(new_list).T
+    
+
+# MISC
+######
+def col_corr(M1,M2):
+    """Here nT is normalised transpose; first subtract means"""
+    M1 = M1 - M1.mean(axis=0)
+    M2 = M2 - M2.mean(axis=0)
+    M1n = M1 * mhalf(np.sum(M1*M1,axis=0))
+    M2n = M2 * mhalf(np.sum(M2*M2,axis=0))
+    return M1n.T @ M2n
+
+def get_row_norm_sq(mat):
+    return np.sum(mat*mat,axis=1)
+
+def get_row_l1_norms(mat):
+    return np.sum(np.abs(mat),axis=1)
+
+def threshold_corrs_mat_only(X,variates,thresh=0.3):
+    corrs = col_corr(X,variates)
+    row_norms = get_row_norm_sq(corrs)
+    mask = (row_norms > thresh**2)
+    return mask,corrs
+
+def get_l1_mask(weights,thresh=0.3):
+    row_norms = get_row_l1_norms(weights)
+    mask = (row_norms > thresh)
+    return mask

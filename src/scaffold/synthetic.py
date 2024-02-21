@@ -133,8 +133,8 @@ def compute_everything_single_seed(setting,rs,pen_list):
 
 def load_metric_dfs(setting,rs):
     cv_obj = load_mvn_cv(setting,rs)
-    df_full = cv_obj.load_dffull()
-    df_cvav = cv_obj.load_dfcvav()
+    df_full = cv_obj.load_df_oracle()
+    df_cvav = cv_obj.load_summary('cv averages')
     return df_full, df_cvav
 
 def best_pen(df,obj_string,best='min'):

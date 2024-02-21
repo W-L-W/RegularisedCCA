@@ -1,14 +1,27 @@
 import numpy as np
 import os
 
-from src.scaffold.incoming import get_pens
-from src.scaffold.wrappers import get_cv_obj_from_data, compute_everything, get_dataset
+from src.algos import get_pens
+from src.scaffold.wrappers import get_cv_obj_from_data, compute_everything, get_dataset, get_cv_object
+from src.scaffold.io_preferences import save_mplib, save_plotly
+from src.plotting.comparison import (
+    row_plot3, 
+    stab_row_plot, 
+    corr_decay_misc, 
+    traj_stab_array, 
+    pretty_arr_plot,
+    sq_overlap_misc,
+    sq_overlap_folds,
+    sq_overlap_path,
+)
+from src.plotting.biplots import biplot_3D
 
 from real_data.loading import output_folder_real_data
+from real_data.styling import dset_abbrev, mb_3d_style_fns
 # parameters for this script
 # to move to kwargs later so that can be run from command line
 
-dataset = 'nutrimouse'
+dataset = 'breastdata'
 
 
 # wit, i.e. sPLS, is not a genuine CCA algorithm, and gglasso scales too poorly to fit on the full breastdata set
@@ -19,23 +32,17 @@ algos_CCA_bd = ['suo','ridge']
 
 algos_to_fit = {'nutrimouse': algos_all, 'microbiome': algos_all, 'breastdata': algos_bd}
 algos = algos_to_fit[dataset]
+algos_to_traj_comp = {'nutrimouse': algos_CCA, 'microbiome': algos_CCA, 'breastdata': algos_bd}
+algos_tc = algos_to_traj_comp[dataset]
 data = get_dataset(dataset)
-
-# first fit all the algorithms
-# for algo in algos:
-#     print(f'Fitting {algo}')
-#     cv_obj = get_cv_obj_from_data(data,algo)
-#     pens = get_pens(algo, data, mode='run')
-#     print(pens)
-#     compute_everything(cv_obj,pens)
 
 
 # then process the output and make the plots
-def get_pen_trios(algos, data):
+def get_pen_trios(algos, data, recompute=False):
     file_name = output_folder_real_data(dataset, mode='processed') + 'pen_trios.npz'
     print(file_name)
     # if file doesn't exist compute pen trio
-    if not os.path.exists(file_name):
+    if not os.path.exists(file_name) or recompute:
         def get_trio(scale): return float(scale)**np.array([-1,0,1])
         def get_best_pen(algo): return get_cv_obj_from_data(data,algo).get_best_pen('r2s5')
         pen_trios = {}
@@ -47,10 +54,112 @@ def get_pen_trios(algos, data):
         np.savez(file_name, **pen_trios)
     else:
         pen_trios = np.load(file_name)
+        return pen_trios
+    
+def biplot3D_microbiome_bonus():
+    algos_ggl_first = ['gglasso', 'ridge', 'suo']
+    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_ggl_first]
+
+    vrts = dict()
+    figs = dict()
+
+    for algo,pen in best_pairs:
+        fullp = get_cv_object('microbiome',algo).full_path
+        if algo == 'gglasso': ref_vrts = None
+        else: ref_vrts = vrts['gglasso']
+
+        vrts[algo],figs[algo] = biplot_3D(fullp,pen,inds=[0,1,2],
+                                          ref_vrts=ref_vrts, vrt='Zx', reg_method='orthog',
+                                          vbls=['Y'], thresh=0.4,
+                                          in_sphr=True, mode='markers', cts_color=True, style_function_dict=mb_3d_style_fns,
+                                          )
+        def custom_layout_updater(fig):
+            x_lim = 0.8; y_lim = 0.7; z_lim = 0.6
+            return fig.update_layout(
+                showlegend=False,
+                margin=dict(l=0, r=0, b=0, t=0), # remove all margins
+                title=False,
+                height=600,
+                scene_camera = dict(
+                    up=dict(x=0, y=0, z=1),
+                    eye=dict(x=1, y=1, z=0.7),
+                    center=dict(x=0, y=0, z=-0.12),
+                ),
+                scene = dict(
+                    aspectmode='manual',
+                    aspectratio=dict(x=x_lim, y=y_lim, z=z_lim),
+                    xaxis=dict(range=[-x_lim, x_lim]),
+                    yaxis = dict(range=[-y_lim,y_lim]),
+                    zaxis = dict(range=[-z_lim,z_lim]),
+                ),
+            )
+        
+    for algo,_ in best_pairs:
+        custom_layout_updater(figs[algo])
+        save_plotly(figs[algo], f'mb_biplot_3D_{algo}')
+
+def biplot3D_breastdata_bonus():
+    # to fill in; coppy over from essay.ipynb TODO next
+    pass
+
+
+
+
 
 if __name__ == '__main__':
-    get_pen_trios(algos, data)
-    print('done')
+    # first fit all the algorithms
+    for algo in algos:
+        print(f'Fitting {algo}')
+        cv_obj = get_cv_obj_from_data(data,algo)
+        pens = get_pens(algo, data.n, mode='run')
+        print(pens)
+        compute_everything(cv_obj,pens)
+
+    pen_trios = get_pen_trios(algos, data)
+    print('loaded pen trios', pen_trios)
+
+    # initial correlation and stability along trajectories
+    fig, _, _ = row_plot3(data, algos, lambda x: x**2,[0,2,4],y_label='r2sk-cv')
+    save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr')
+    criteria = ['wt_U', 'vt_U']
+    fig, _ = stab_row_plot(data, algos, criteria, [1,3,5])
+    save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
+
+    # correlation decay
+    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+    fig = corr_decay_misc(dataset, best_pairs)
+    save_mplib(fig, f'{dset_abbrev[dataset]}_corr_decay_best_pens')
+
+    # trajectory comparison matrices
+    algo_penlist_pairs = [(algo,pen_trios[algo]) for algo in algos_tc]
+    arr_wt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='weight')
+    arr_vt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='variate')
+    fig_wt, _ = pretty_arr_plot(arr_wt[:,:,2], algo_penlist_pairs)
+    fig_vt, _ = pretty_arr_plot(arr_vt[:,:,2], algo_penlist_pairs)
+    save_mplib(fig_wt, f'{dset_abbrev[dataset]}_traj_comp_wt')
+    save_mplib(fig_vt, f'{dset_abbrev[dataset]}_traj_comp_vt')
+
+    # overlap matrices
+    fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1)
+    save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens')
+
+    if dataset == 'microbiome':
+        # bonus plots for microbiome appendix
+        algo = 'gglasso'; folds=[0,1,2]; pens = pen_trios[algo]
+        fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
+        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
+
+        best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+        fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1, reg='orthog')
+        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
+
+        suo_pens = pen_trios['suo']
+        fig, _ = sq_overlap_path(dataset, 'suo',suo_pens,ref_pen=suo_pens[1],reg='signs')
+        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
+
+        biplot3D_microbiome_bonus()
+
+
 
 # progress at lunch break: need to fix error on console about get_best_pen
         

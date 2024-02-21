@@ -26,7 +26,7 @@ def panel_plot(data,Kmax=5):
     for idx,algo in enumerate(['wit','suo','gglasso','ridge',]):
         solp = get_cv_obj_from_data(data,algo).full_path
         try:
-            df = solp.load_dffull() # if already processed: 
+            df = solp.load_df_oracle() # if already processed: 
         except:
             df = solp.process_estimates() 
         df = df.set_index('pen').sort_index()

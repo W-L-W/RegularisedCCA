@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from src.scaffold.io_preferences import algo_labels, get_cv_obj_from_data, get_cv_object
-from src.scaffold.wrappers import get_dataset
+from src.algos import algo_labels
+from src.scaffold.wrappers import get_dataset, get_cv_obj_from_data, get_cv_object
 from src.scaffold.core import CV, MVNCV, MVNData
 from src import utils
 
@@ -57,7 +57,7 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
     inds: list of ints
         indices up to which to aggregate
     """
-    dfcvfull = cv_object.load_dfcv()
+    dfcvfull = cv_object.load_summary('cv full')
 
     # see if cv_object is from synthetic MultiVariate Normal, if so will plot true values...
     MVN = (type(cv_object)==MVNCV)
@@ -79,7 +79,7 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
 
     # get true values if available
     if MVN:
-        df_true = cv_object.load_dffull()[cols_of_interest].set_index('pen')
+        df_true = cv_object.load_df_oracle()[cols_of_interest].set_index('pen')
         df_true_sum_f = df_true.apply(nice_fn).cumsum(axis=1)
         df_true_sum_f.columns = df.columns
 
@@ -122,7 +122,7 @@ def plot_cv_subspace(cv_object,inds,ax,logx=False):
     """
     Plot subspace test correlations - whatever aggregation was used in process_cv call.
     """
-    dfav = cv_object.load_dfcvav()
+    dfav = cv_object.load_summary('cv averages')
 
     sub_corrs = ['sub_corr'+str(k) for k in inds]
     #  plot, using sensible colour scheme
@@ -155,7 +155,7 @@ def stab_row_plot(data,algos,criteria,inds,folder_title=False):
             # sort out the legend
             # After all the plotting is done, get the lines and labels of the current axes
             lines, labels = ax.get_legend_handles_labels()   
-            # If legend_display is 'compact', remove the lines and labels for dffull
+            # If legend_display is 'compact', remove the lines and labels for df_oracle
             lines, labels = zip(*[(line, ind) for line, label, ind in zip(lines, labels, 2*inds) if '_cv' in label])
             # Set the legend with the desired lines and labels
             ax.legend(lines, labels,loc='upper right')
@@ -187,7 +187,7 @@ def plot_instability(cv_object,criterion,inds,ax,logx=False,legend_display='comp
     inds: list of ints
         indices to plot
     """
-    dfstabav = cv_object.load_dfstabav()
+    dfstabav = cv_object.load_summary('instability averages')
     # see if cv_object is from synthetic MultiVariate Normal, if so will plot true values...
     MVN = (type(cv_object)==MVNCV)
 
@@ -196,7 +196,7 @@ def plot_instability(cv_object,criterion,inds,ax,logx=False,legend_display='comp
     # get true values if available
     if MVN:
         # sort values to prevent line wiggling
-        dffull = cv_object.load_dffull().sort_values(by='pen').set_index('pen')
+        df_oracle = cv_object.load_df_oracle().sort_values(by='pen').set_index('pen')
         
     cmap = plt.get_cmap('autumn')
     mycmap = lambda z: cmap(0.8*z) 
@@ -210,7 +210,7 @@ def plot_instability(cv_object,criterion,inds,ax,logx=False,legend_display='comp
     
         if MVN:
             label = col #None if legend_display == 'compact' else
-            dffull[col].plot(ax=ax,logx=logx,color=color,style='.-',linewidth=0.5,linestyle='--',label=label)
+            df_oracle[col].plot(ax=ax,logx=logx,color=color,style='.-',linewidth=0.5,linestyle='--',label=label)
 
     return ax,dfstabav[cols_to_plot]
 
@@ -225,7 +225,7 @@ def plot_corr_decr(cv_obj,pen,Kmax=8,nearest=True,ax=None,min_y=None,squared=Fal
         potential_pens = cv_obj.get_pen_list()
         pen = min(potential_pens, key=lambda x:abs(x-pen))
 
-    dfcv = cv_obj.load_dfcv()
+    dfcv = cv_obj.load_summary('cv full')
     relev = dfcv[np.isclose(dfcv['pen'],pen)]
     rhos = ['rho'+str(n) for n in range(1,Kmax)]
 
@@ -251,7 +251,7 @@ def plot_corr_decr(cv_obj,pen,Kmax=8,nearest=True,ax=None,min_y=None,squared=Fal
 def triple_plot(dataset, algo, pens=None, min_y=None, squared=False, compact=True):
     cv_obj = get_cv_object(dataset,algo)
     if pens is None:
-        df = cv_obj.load_dfcvav()
+        df = cv_obj.load_summary('cv averages')
         top5 = np.array(df[('rhosum5','mean')].sort_values(ascending=False).index[:5]).round(5)
         best_pen = top5[0]
         pens = np.array([0.1,1,10])*best_pen
@@ -494,7 +494,7 @@ def traj_stab_array(dataset,algo_penlist_pairs,inds,space='variate'):
     inds : list of ints
         Indices of variates to use
 
-    space : {'variate','direction'}
+    space : {'variate','weight'}
         In which space to work in for squared sin-theta-distances
 
     Returns
@@ -503,25 +503,25 @@ def traj_stab_array(dataset,algo_penlist_pairs,inds,space='variate'):
     """
     def discrepancy(pair1,pair2):
         """
-        Takes two (algo,pen) pairs and returns vector of sin_theta distances between estimates for given indices
-        (admittedly bit strange to do sin_theta_mult on arbitrary inds, but will leave for now)
+        Takes two (algo,pen) pairs and returns vector of sin2theta distances between estimates for given indices
+        (admittedly bit strange to do sin2theta_mult on arbitrary inds, but will leave for now)
         """
         data = get_dataset(dataset)
         X = data.X
 
         def get_Me(pair):
-            """Matrices from estimates to compare with sin-theta-mult, either variates or directions"""
+            """Matrices from estimates to compare with sin-theta-mult, either variates or weights"""
             algo = pair[0]
             pen = pair[1]
             solp = get_cv_object(dataset,algo).full_path
             Ue,_,_ = solp.load_est_n_t(pen,nearest=True)
             if space=='variate': return X @ Ue[:,inds]
-            elif space=='direction': return Ue[:,inds]
-            else: raise ValueError(f"space must be 'variate' or 'direction', not {space}")
+            elif space=='weight': return Ue[:,inds]
+            else: raise ValueError(f"space must be 'variate' or 'weight', not {space}")
 
         Me1,Me2 = map(get_Me,[pair1,pair2])
 
-        return utils.sin_theta_mult(Me1,Me2)
+        return utils.sin2theta_mult(Me1,Me2)
 
 
     pairs = algo_penlist_pairs_to_algo_pen_pairs(algo_penlist_pairs)
@@ -607,7 +607,7 @@ def plot_array(arr,algo_penlist_pairs):
     """
     for k in range(arr.shape[2]):
         ax = pretty_arr_plot(arr[:,:,k],algo_penlist_pairs)
-        ax.set_title('sin_theta_k variate, X view with k = {}'.format(k))
+        ax.set_title('sin2theta_k variate, X view with k = {}'.format(k))
         plt.show()
     
 def find_smallest_submatrix(matr,ind_partition, method='brute_force'):

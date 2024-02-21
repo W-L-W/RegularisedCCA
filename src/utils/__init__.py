@@ -20,4 +20,7 @@ from .linalg import (
     sq_trigs,
     register_general,
     gram_schmidt,
+    col_corr,
+    threshold_corrs_mat_only,
+    get_l1_mask,
 )

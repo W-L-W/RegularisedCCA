@@ -6,6 +6,14 @@
 import numpy as np
 import pandas as pd
 
+# GENERAL
+#########
+dset_abbrev = {
+    'nutrimouse': 'nm',
+    'breastdata': 'bd',
+    'microbiome': 'mb',
+}
+
 # BREASTDATA
 ############
 def get_split_bd(labs):
