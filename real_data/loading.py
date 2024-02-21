@@ -6,7 +6,20 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 from src.scaffold.core import Data
-from src.scaffold.incoming import base_ds, real_data_base_ds
+from src.scaffold.incoming import base_output_dir, real_data_dir
+
+# Master function for loading datasets
+def get_dataset(dataset: str):
+    """ Options: 'breastdata', 'nutrimouse', 'microbiome' """
+    if dataset=='breastdata':
+        X, Y, X_labs, Y_labs = get_breastdata()
+    elif dataset=='nutrimouse':
+        X, Y, X_labs, Y_labs = get_nutrimouse()
+    elif dataset == 'microbiome':
+        X, Y, X_labs, Y_labs = get_microbiome()
+    else:
+        print(f'Unrecognised dataset: {dataset}')
+    return Data(X, Y, X_labs=X_labs, Y_labs=Y_labs, folder_name=output_folder_real_data(dataset),)
 
 
 # Shared helper functions
@@ -14,12 +27,20 @@ def demean_cols(M):
     return M - M.mean(axis=0)
 
 def raw_data_filename(dataset: str, filename: str) -> str:
-    raw_directory = real_data_base_ds + '/' + dataset + '/raw/'
+    """For loading from the csv files I had manually placed into the real_data directory."""
+    raw_directory = real_data_dir + '/' + dataset + '/raw/'
     return raw_directory + filename
 
 def pboot_filename(dataset: str, filename: str) -> str:
-    pboot_directory = real_data_base_ds + '/' + dataset + '/pboot/'
+    """For saving and loading covariance matrices generated from parametric bootstrap, into subdirectory of real_data"""
+    pboot_directory = real_data_dir + '/' + dataset + '/pboot/'
     return pboot_directory + filename
+
+def output_folder_real_data(dataset: str, mode='detail') -> str:
+    """Folder name for data objects, to determine where the estimates and summary statistics are saved
+    mode = {'detail', 'processed'}"""
+    return base_output_dir + '/' + mode + '/real/' + dataset + '/'
+
 
 # BREASTDATA
 ############
@@ -38,8 +59,7 @@ def get_breastdata():
     rna_labels = rna_labels_full['genename']
     rna_labels.name = 'rna_labels'
 
-    data = Data(X, Y, folder_name=base_ds + 'breastdata', X_labs=dna_labels, Y_labs=rna_labels)
-    return data
+    return X, Y, dna_labels, rna_labels
 
 
 # NUTRIMOUSE
@@ -62,21 +82,18 @@ def get_nutrimouse():
     X_labs = lipids.columns.rename('lipids')
     Y_labs = genes.columns.rename('genes')
 
-    data = Data(X,Y,folder_name=base_ds+'nutrimouse',
-               X_labs=X_labs,Y_labs=Y_labs)
-    return data
+    return X, Y, X_labs, Y_labs
 
 
 # MICROBIOME
 ############
 def get_microbiome():
-    # note only considering prep_type `v1` for now; potentially to review
+    # previously had flexibility with the preprocessing procedure; now only using 'v1' (see function below)
+    # a microbiologist may want to consider alternative options
     prep_type='v1'
     X,Y,X_cols,Y_cols,index = prep_type_to_data(prep_type)
     X_cols.name = 'k0_KEGG'; Y_cols.name = 'met_KEGG'
-    data = Data(X,Y,folder_name=base_ds+'kumar_oop/'+prep_type,
-                   X_labs=X_cols,Y_labs=Y_cols)
-    return data
+    return X, Y, X_cols, Y_cols
 
 ## Data preparation and computation of estimates
 def prep_type_to_data(prep_type):
@@ -134,3 +151,5 @@ def prep_type_to_data(prep_type):
 
     else:
         raise Exception(f'unrecognised prep_type {prep_type}- perhaps not yet implemented?')
+
+
