@@ -3,7 +3,7 @@ RegularisedCCA.egg-info/
 /**/__pycache__
 
 tests/play.py
-expmts_out/**/estimates/
-expmts_out
-real_data/**/*.npz
+#expmts/**/estimates/
+expmts/out/detail
+real_data/**/*
 # for now want to keep local and have minimal data on github; later will likely need to add in
