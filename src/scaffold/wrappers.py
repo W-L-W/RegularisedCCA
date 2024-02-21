@@ -1,24 +1,9 @@
 import numpy as np
 from typing import Iterable
 
-from real_data.loading import get_breastdata, get_nutrimouse, get_microbiome
+from real_data.loading import get_dataset
 from src.scaffold.core import Data, CV, MVNData, MVNCV, MVNFactory
 from src.utils import covs
-
-# REAL DATA
-###########
-def get_dataset(dataset: str):
-    """ Options: 'breastdata', 'nutrimouse', 'microbiome' """
-    if dataset=='breastdata':
-        data = get_breastdata()
-    elif dataset=='nutrimouse':
-        data = get_nutrimouse()
-    elif dataset == 'microbiome':
-        data = get_microbiome()
-    else:
-        print(f'Unrecognised dataset: {dataset}')
-    return data
-
 
 # COORDINATION
 ##############

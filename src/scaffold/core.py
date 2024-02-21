@@ -401,7 +401,7 @@ class CV():
 
     def get_best_pen(self,objective='rhosum5'):
         # be careful to call this with an objective that has actually been fitted already!
-        df = self.load_dfcvav()
+        df = self.load_summary('cv averages')
         df_sorted = df[objective].sort_values(by='mean',ascending=False)
         best_pen = df_sorted.index[0]
         return best_pen

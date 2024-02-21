@@ -13,7 +13,7 @@ PSDMatrix = np.ndarray
 # ROOTS, INVERSES, POSITIVE DEFINITENESS
 ########################################
 
-def _masked_power(vec: Vector, power: float, atol: float =10**-6, rgln: float = 0):
+def _masked_power(vec: Vector, power: float, atol: float = 10**-6, rgln: float = 0):
     """Raise elements of a non-negative vector to the power of `power`, replacing zero entries with `rgln`"""
     w = vec.astype('float')
     mask = ~np.isclose(w, 0, atol=atol)
@@ -36,7 +36,8 @@ def mhalf(vec: Vector):
 
 def sqrtm(M: PSDMatrix):
     w, v = np.linalg.eigh(M)
-    return v@ np.diag(w**0.5) @v.T
+    w = enforce_genuinely_non_negative(w)
+    return v @ np.diag(w**0.5) @ v.T
 
 def nsqrtm(M: PSDMatrix):
     w, v = np.linalg.eigh(M)
@@ -144,7 +145,8 @@ def sq_trigs(A: Matrix, B: Matrix, trig_fn='cos', succ_mode='subsp'):
 
     if succ_mode == 'indiv':
         def normalised(A):
-            return A / np.linalg.norm(A,axis=0)
+            # use _masked_power to avoid divide by zero warnings
+            return A * _masked_power(np.linalg.norm(A,axis=0), power=-1)
         An = normalised(A)
         Bn = normalised(B)
         cos2thetas = (An * Bn).sum(axis=0)**(2)

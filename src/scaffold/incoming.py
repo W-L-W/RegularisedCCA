@@ -9,12 +9,12 @@ from src.algos import sb_algo_glasso, first_K_ccs_lazy, PMD_CCA
 
 
 # IO behaviour
-dir_path = os.path.dirname(os.path.realpath(__file__))
-base_ds = dir_path+'/../../expmts_out'
-real_data_base_ds = dir_path+'/../../real_data'
+dir_path_this_script = os.path.dirname(os.path.realpath(__file__))
+base_output_dir = dir_path_this_script+'/../../expmts/out'
+real_data_dir = dir_path_this_script+'/../../real_data'
 
-def mvn_folder_name(cov_desc, p, q, n, rs):
-    folder_name = base_ds + f'/{cov_desc}/p{p}q{q}n{n}/rs{rs}/'
+def mvn_folder_name(cov_desc: str, p: int, q: int, n: int, rs: int):
+    folder_name = base_output_dir + f'/{cov_desc}/p{p}q{q}n{n}/rs{rs}/'
     return folder_name
 
 
@@ -58,12 +58,12 @@ def get_ests_n_time(X,Y, algo: str, pen: float, K: int):
     else:
         raise(f'Algorithm {algo} not implemented yet!')
     te = time.time()-start
-    return Ue[:,:K],Ve[:,:K],te
+    return Ue[:,:K], Ve[:,:K], te
 
 # choosing penalties depends primarily on algorithm, and dataset size
 # these choices worked well for the three datasets we considered, and the setting of our study 
 # but one may want to edit the choice of penalties for other datasets or applications
-def get_pens(algo,data, mode='run'):
+def get_pens(algo: str, data, mode='run'):
     """
     Determine penalties to use for given algo as a function of size of data
     Run-time will scale linearly with number of different penalties

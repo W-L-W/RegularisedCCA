@@ -3,12 +3,14 @@ import numpy as np
 import pandas as pd
 import os
 
-from src.scaffold.wrappers import get_dataset, cov_type_to_fac, compute_everything
-from src.scaffold.core import MVNCV, MVNDist
-from src.algos import first_K_ccs_lazy
+from src.scaffold.wrappers import cov_type_to_fac, compute_everything
+from src.scaffold.core import MVNCV, MVNDist, MVNFactory
+from src.utils import covs
 from src.utils import gram_schmidt
+from src.algos import first_K_ccs_lazy
 
-from real_data.loading import pboot_filename
+
+from real_data.loading import get_dataset, pboot_filename
 
 
 # PARAMETRIC BOOTSTRAP
@@ -19,6 +21,9 @@ bootstrap_params = {
     ('nutrimouse','ridge','cvm3'): {'ridge': 0.066},
     ('nutrimouse', 'gglasso', 'cvm3'): {'pen': 0.0066},
     ('nutrimouse', 'suo_ridge', 'cvm3'): {'pen': 0.026, 'K': 10, 'ridge': 0.01},
+    ('microbiome', 'ridge', 'cv'): {'ridge': 0.11},
+    ('microbiome', 'gglasso', 'cv'): {'pen': 0.0059},
+    ('microbiome', 'suo_ridge', 'cv'): {'pen': 0.013, 'K': 10, 'ridge': 0.01}
 }
 # currently copied over manually from previous experiment runs
 # TODO: have a more systematic way to determine penalty settings
@@ -182,6 +187,74 @@ def vary_n_best_rows(algo,cov_type,p,q,folds,K,ns,rss,pen_objs):
 
 
 
-if __name__ == '__main__':
-    mvn = load_pboot_mvn('nutrimouse', 'gglasso', 'cvm3')
-    print(mvn.cov_desc)
+# PURELY SYNTHETIC DATA GENERATION
+##################################
+def cov_type_to_fac(cov_type: str):
+    """convert from string descriptor to cov mat for Multivariate Normal (MVN)"""
+    # mac is short for machine (working in the factory)
+    if cov_type == '3spike_id':
+        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='identity')
+    elif cov_type == '3spike_to':
+        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='toeplitz')
+    elif cov_type == '3spike_sp':
+        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse')
+    elif cov_type == '3spike_sp_sep':
+        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
+    elif cov_type == '3spike_sp_old':
+        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
+    elif cov_type == 'suo_id_unif':
+        mac = lambda p,q: covs.suo_basic('identity',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_to_unif':
+        mac = lambda p,q: covs.suo_basic('toeplitz',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_sp_unif':
+        mac = lambda p,q: covs.suo_basic('sparse',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_id_rand':
+        mac = lambda p,q: covs.suo_rand('identity',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_to_rand':
+        mac = lambda p,q: covs.suo_rand('toeplitz',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_sp_rand':
+        mac = lambda p,q: covs.suo_rand('sparse',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_lr_rand':
+        mac = lambda p,q: covs.suo_rand('low_rank',p,q,rho=0.9,ms=5,ps=5)
+    elif cov_type == 'suo_sp_rand50':
+        mac = lambda p,q: covs.suo_rand('sparse',p,q,rho=0.9,ms=50,ps=50)
+    elif cov_type == 'erdos':
+        from gglasso.helper.data_generation import generate_precision_matrix
+        def mac(p,q):
+            p_tot = p + q
+            Sig, Theta = generate_precision_matrix(p=p_tot, M=1, style='erdos', prob=0.1, seed=1234)
+            return Sig
+    elif cov_type == 'powerlaw':
+        from gglasso.helper.data_generation import generate_precision_matrix
+        def mac(p,q):
+            p_tot = p + q
+            # got mysterious networkx error for m=p=200 when had seed 1234 but OK with seed 1200 so hacky fix...
+            nxseed = 1200 if p==200 else 1234
+            Sig, Theta = generate_precision_matrix(p=p_tot, M=1, style='powerlaw',gamma=3, seed=nxseed)
+            rng = np.random.default_rng(seed=0)
+            perm = rng.permutation(p_tot)
+            # in old version I had line below other way round and it did something strange with copy assignment
+            final_Sig = Sig[np.ix_(perm,perm)]
+            return final_Sig
+    elif cov_type == '10spikes_size4_sp':
+        mac = lambda p,q: covs.geom_corr_decay_sparse_weight_multi_spike(
+            p, q, K=10, decay_ratio=0.9, spike_size=4
+        )
+    elif cov_type == '8spikes_size3_sp_weighted':
+        mac = lambda p,q: covs.geom_corr_decay_sparse_weight_multi_spike(
+            p, q, K=8, decay_ratio=0.9, spike_size=3, method='sparse', geom_param=0.9
+        )
+    elif cov_type == 'bach_latent':
+        def mac(p,q):
+            (nlatents,decay_ratio,supp_size) = 10,0.9,3
+            Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size)
+            return Sig
+    elif cov_type == 'bach_latent_sp':
+        def mac(p,q):
+            (nlatents,decay_ratio,supp_size) = 10,0.9,3
+            Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size,method='sparse')
+            return Sig
+    else:
+        raise Exception(f'unrecognised cov_type {cov_type}- perhaps not yet implemented?')
+
+    return MVNFactory(cov_type, mac)

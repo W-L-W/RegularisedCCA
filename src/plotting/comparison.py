@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from src.scaffold.incoming import algo_labels, get_cv_obj_from_data, get_cv_object, get_dataset
+from src.scaffold.incoming import algo_labels, get_cv_obj_from_data, get_cv_object
+from src.scaffold.wrappers import get_dataset
 from src.scaffold.core import CV, MVNCV, MVNData
 from src import utils
 
