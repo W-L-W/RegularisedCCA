@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 from src.scaffold.core import Data
-from src.scaffold.incoming import base_output_dir, real_data_dir
+from src.scaffold.io_preferences import real_data_dir, output_folder_real_data
 
 # Master function for loading datasets
 def get_dataset(dataset: str):
@@ -36,10 +36,6 @@ def pboot_filename(dataset: str, filename: str) -> str:
     pboot_directory = real_data_dir + '/' + dataset + '/pboot/'
     return pboot_directory + filename
 
-def output_folder_real_data(dataset: str, mode='detail') -> str:
-    """Folder name for data objects, to determine where the estimates and summary statistics are saved
-    mode = {'detail', 'processed'}"""
-    return base_output_dir + '/' + mode + '/real/' + dataset + '/'
 
 
 # BREASTDATA

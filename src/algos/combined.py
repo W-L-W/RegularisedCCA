@@ -1,25 +1,9 @@
 import numpy as np
-
 import time
-import os
 
 from cca_zoo.models import rCCA,SCCA_IPLS
-
 from src.algos import sb_algo_glasso, first_K_ccs_lazy, PMD_CCA
 
-
-# IO behaviour
-dir_path_this_script = os.path.dirname(os.path.realpath(__file__))
-base_output_dir = dir_path_this_script+'/../../expmts/out'
-real_data_dir = dir_path_this_script+'/../../real_data'
-
-def mvn_folder_name(cov_desc: str, p: int, q: int, n: int, rs: int):
-    folder_name = base_output_dir + f'/{cov_desc}/p{p}q{q}n{n}/rs{rs}/'
-    return folder_name
-
-
-# ALGORITHMS
-############
 algo_labels = {'wit':'sPLS',
                'suo': 'sCCA',
                'gglasso': 'gCCA',
@@ -63,7 +47,7 @@ def get_ests_n_time(X,Y, algo: str, pen: float, K: int):
 # choosing penalties depends primarily on algorithm, and dataset size
 # these choices worked well for the three datasets we considered, and the setting of our study 
 # but one may want to edit the choice of penalties for other datasets or applications
-def get_pens(algo: str, data, mode='run'):
+def get_pens(algo: str, n: int, mode: str ='run'):
     """
     Determine penalties to use for given algo as a function of size of data
     Run-time will scale linearly with number of different penalties
@@ -77,7 +61,7 @@ def get_pens(algo: str, data, mode='run'):
             pens = np.logspace(np.log10(1),np.log10(7),15)
         elif (algo == 'suo') or (algo == 'gglasso') or (algo == 'IPLS'):
             def pen_poly(n): return 2 * (n ** -0.5)
-            pens = np.block([np.logspace(-20,-3,2),np.logspace(-2,-1.2,3),np.logspace(-1,1,16),np.logspace(1.2,2,4)]) * pen_poly(data.n) 
+            pens = np.block([np.logspace(-20,-3,2),np.logspace(-2,-1.2,3),np.logspace(-1,1,16),np.logspace(1.2,2,4)]) * pen_poly(n) 
         elif (algo == 'ridge'):
             # changed 19 Jan to have more coverage near 1
             pens_from_zero = np.block([np.logspace(-20,-4,2),np.logspace(-4,-1,6),np.linspace(0.2,0.8,6)])   
@@ -86,5 +70,3 @@ def get_pens(algo: str, data, mode='run'):
     else:
         raise ValueError(f'Unknown mode {mode} for get_pens')
     return pens
-
-
