@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from src.scaffold.wrappers import get_cv_obj_from_data
-from src.scaffold.incoming import algo_labels
+from src.algos import algo_labels
 
 cmap = plt.get_cmap('turbo')
 cmap_oracle = lambda z: cmap(0.65*z)

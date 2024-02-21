@@ -12,7 +12,7 @@ from plotly.subplots import make_subplots
 
 
 # internal imports
-from src.scaffold.incoming import algo_labels
+from src.algos import algo_labels
 from src.scaffold.wrappers import get_dataset, get_cv_obj_from_data
 from src import utils
 
