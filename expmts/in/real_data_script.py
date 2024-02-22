@@ -14,10 +14,10 @@ from src.plotting.comparison import (
     sq_overlap_folds,
     sq_overlap_path,
 )
-from src.plotting.biplots import biplot_3D
+from src.plotting.biplots import biplot_3D, side_by_side_misc_biplots, rescale_slider_comparison
 
 from real_data.loading import output_folder_real_data
-from real_data.styling import dset_abbrev, mb_3d_style_fns
+from real_data.styling import dset_abbrev, mb_2d_style_fns, mb_3d_style_fns, bd_3d_style_fns, kumar_style_fns
 # parameters for this script
 # to move to kwargs later so that can be run from command line
 
@@ -55,7 +55,45 @@ def get_pen_trios(algos, data, recompute=False):
     else:
         pen_trios = np.load(file_name)
         return pen_trios
-    
+
+def biplot2D_microbiome_bonus():
+    algos = ['suo', 'gglasso', 'ridge'] # good to have gglasso in middle
+    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+
+    def get_inds(algo): return [0,1] if algo=='gglasso' else range(3)
+    tuples = [(*p,get_inds(p[0])) for p in best_pairs]
+
+    fig = side_by_side_misc_biplots('microbiome', tuples, ref_idx=1,vrt='Zx',
+                                    reg_method='orthog', mask_type='shared',
+                                    vbls=['X','Y'],wgts=['U','V'],thresh=0.4,w_thresh=0.07,
+                                    mode='markers',style_function_dict=mb_2d_style_fns,
+                                    )
+    rescale_slider_comparison(fig.update_traces(),0.4,0.6)
+    fig.update_layout(
+        showlegend=False,
+        margin=dict(l=50, r=50, b=50, t=50,),
+    )
+    save_plotly(fig, 'mb_biplot_2D_grid')
+
+def biplot3D_microbiome_kumar():
+    fullp = get_cv_object('microbiome','gglasso').full_path
+    pen = pen_trios['gglasso'][1]
+    _, fig = biplot_3D(fullp, pen, inds=[0,1,2], 
+                         ref_vrts=None, vrt='Zx', reg_method='orthog',
+                         vbls=['X','Y'], thresh=0.4,
+                         in_sphr=True, mode='markers', cts_color=True, style_function_dict=kumar_style_fns,
+                         )
+    fig.update_layout(
+        showlegend=False,
+        margin=dict(l=0, r=0, b=0, t=0),
+        title=False,
+        height=600,
+        scene_camera=dict(up=dict(x=0, y=0, z=1), 
+                          eye=dict(x=1.3, y=1.3, z=1), 
+                          center=dict(x=0, y=0, z=-0.2))
+    )
+    save_plotly(fig, 'mb_biplot_3D_kumar_annotations.png')
+
 def biplot3D_microbiome_bonus():
     algos_ggl_first = ['gglasso', 'ridge', 'suo']
     best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_ggl_first]
@@ -73,26 +111,26 @@ def biplot3D_microbiome_bonus():
                                           vbls=['Y'], thresh=0.4,
                                           in_sphr=True, mode='markers', cts_color=True, style_function_dict=mb_3d_style_fns,
                                           )
-        def custom_layout_updater(fig):
-            x_lim = 0.8; y_lim = 0.7; z_lim = 0.6
-            return fig.update_layout(
-                showlegend=False,
-                margin=dict(l=0, r=0, b=0, t=0), # remove all margins
-                title=False,
-                height=600,
-                scene_camera = dict(
-                    up=dict(x=0, y=0, z=1),
-                    eye=dict(x=1, y=1, z=0.7),
-                    center=dict(x=0, y=0, z=-0.12),
-                ),
-                scene = dict(
-                    aspectmode='manual',
-                    aspectratio=dict(x=x_lim, y=y_lim, z=z_lim),
-                    xaxis=dict(range=[-x_lim, x_lim]),
-                    yaxis = dict(range=[-y_lim,y_lim]),
-                    zaxis = dict(range=[-z_lim,z_lim]),
-                ),
-            )
+    def custom_layout_updater(fig):
+        x_lim = 0.8; y_lim = 0.7; z_lim = 0.6
+        return fig.update_layout(
+            showlegend=False,
+            margin=dict(l=0, r=0, b=0, t=0), # remove all margins
+            title=False,
+            height=600,
+            scene_camera = dict(
+                up=dict(x=0, y=0, z=1),
+                eye=dict(x=1, y=1, z=0.7),
+                center=dict(x=0, y=0, z=-0.12),
+            ),
+            scene = dict(
+                aspectmode='manual',
+                aspectratio=dict(x=x_lim, y=y_lim, z=z_lim),
+                xaxis=dict(range=[-x_lim, x_lim]),
+                yaxis = dict(range=[-y_lim,y_lim]),
+                zaxis = dict(range=[-z_lim,z_lim]),
+            ),
+        )
         
     for algo,_ in best_pairs:
         custom_layout_updater(figs[algo])
@@ -100,7 +138,44 @@ def biplot3D_microbiome_bonus():
 
 def biplot3D_breastdata_bonus():
     # to fill in; coppy over from essay.ipynb TODO next
-    pass
+    algos = ['suo', 'ridge']
+    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+
+    vrts = dict()
+    figs = dict()
+
+    for algo,pen in best_pairs:
+        fullp = get_cv_object('breastdata',algo).full_path
+        if algo == 'suo': ref_vrts = None
+        else: ref_vrts = vrts['suo']
+
+        vrts[algo],figs[algo] = biplot_3D(fullp,pen,inds=[0,1,2],
+                                          ref_vrts=ref_vrts, vrt='Zx', reg_method='orthog',
+                                          vbls=['X'], thresh=0.4,
+                                          in_sphr=True, mode='markers', cts_color=False, style_function_dict=bd_3d_style_fns,
+                                          )
+        
+    def custom_layout_updater(fig):
+        return fig.update_layout(
+            showlegend=False,
+            margin=dict(l=0, r=0, b=0, t=0), # remove all margins
+            title=False,
+            height=600,
+            scene_camera = dict(
+                up=dict(x=0, y=0, z=1),
+                eye=dict(x=-1.5, y=-1.5, z=1),
+                center=dict(x=0, y=0, z=-0.2),
+            ),
+            scene = dict(
+                xaxis=dict(range=[-1,1]),
+                yaxis = dict(range=[-1,1]),
+                zaxis = dict(range=[-1,1]),
+            )
+        )
+    
+    for algo,_ in best_pairs:
+        custom_layout_updater(figs[algo])
+        save_plotly(figs[algo], f'bd_biplot_3D_{algo}_coloured')
 
 
 
@@ -158,6 +233,9 @@ if __name__ == '__main__':
         save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
 
         biplot3D_microbiome_bonus()
+
+    if dataset == 'breastdata':
+        biplot3D_breastdata_bonus()
 
 
 
