@@ -21,6 +21,36 @@ Recall that for now want to produce minimal quantity of plots required for essay
 This is what is required for the `essay.ipynb` file; so can work through that!
 Yes, got the assertion error that I was hoping for. Happy days.
 
+# Recall formatting for load df summary
+Changed load_dffull to load_df_oracle's for MVNSolPath and MVNCV
+Hopefully will all work now?
+
+
+
+
+# Tuesday 20 Feb:
+For return on Wednesday - check that the new file structure has not broken the saving.py content then commit, push, then keep going through `essay.ipynb` for nutrimouse in that script
+
+# New experiment folder structure
+Does actually make sense I think.
+Idea is that there will be a small number of scripts in `expmts/in` that can be run from the command line
+Some of these will be of the flavour 'compute everything' and create many files in `expmts/out/detail`
+Others will be of the flavour 'create certain plots'
+There will be a lot of plots, but a manageable number, and for convenience of putting into the overleaf file, I think it is in fact OK to have these in a single folder
+# A topological ordering
+Of the files in this project to prevent any circular import errors
+(no dependencies at top)
+utils (linalg; cca, covs)
+algos (gCCA, sCCA, sPLS)
+scaffold (incoming; core)
+real_data (loading; styling)
+scaffold (wrappers; synthetic)
+plots (basic; the_rest)
+
+Extra notes:
+This is one possible order, there are many other options also (e.g. real_data.styling has no dependnecies, it only needs np and pd)
+
+
 
 # Some-day maybe
 - Fun reading: https://medium.com/brexeng/avoiding-circular-imports-in-python-7c35ec8145ed
