@@ -36,7 +36,7 @@ n = nsamples[dataset] # number of samples in the true dataset
 # create object for mvn and the data from the given random seed
 mvn = load_pboot_mvn(dataset, regn, param_choice)
 data = mvn.gen_data(rs,n)
-print(data.folder)
+print(data.folder_detail)
 
 for algo in algos:
     cv_obj = get_cv_obj_from_data(data,algo)
