@@ -60,21 +60,12 @@ We include csv files of all the raw data used for these experiments in `real_dat
 ## Package structure
 To avoid circular import errors, we have structured the files in this project to satisfy the following topological ordering (no dependencies at top, semi-colons in brackets indicate left-to-right dependencies, commas indicate that there are no dependencies between adjacent files):
 
-utils (linalg; cca, covs)  
-algos (gCCA, sCCA, sPLS; combined)  
-scaffold (io_preferences; core)  
-real_data (loading; styling)  
-scaffold (wrappers; synthetic)  
-plots (basic; all-other-plots)  
 
 | Directory | Files | Description |
 | --------- | ----- | ----------- |
-| utils | linalg; cca, covs | basic utility functions for linear algebra and canonical correlation analysis |
-| Directory | Files | Description |
-| --------- | ----- | ----------- |
-| utils | linalg; cca, covs | Basic utility functions for linear algebra and canonical correlation analysis |
-| algos | gCCA, sCCA, sPLS; combined | Algorithms for graphical CCA, sparse CCA, sparse PLS, and unified interface |
-| scaffold | io_preferences; core | Input/output preferences and core functionality of caching framework for comparison of different estimates |
-| real_data | loading; styling | For loading data matrices and variable labels in standardized format (uses objects from `scaffold.core`) |
-| scaffold | wrappers; synthetic | Wrapper functions exploiting the scaffold caching framework, and synthetic data generation |
-| plots | basic; ... | Plotting functions |
+| `utils` | `linalg`; `cca`, `covs` | Basic utility functions for linear algebra and canonical correlation analysis |
+| `algos` | `gCCA`, `sCCA`, `sPLS`; `combined` | Algorithms for graphical CCA, sparse CCA, sparse PLS, and unified interface |
+| `scaffold` | `io_preferences`; `core` | Input/output preferences and core functionality of caching framework for comparison of different estimates |
+| `real_data` | `loading`; `styling` | For loading data matrices and variable labels in standardized format (uses objects from `scaffold.core`) |
+| `scaffold` | `wrappers`; `synthetic` | Wrapper functions exploiting the scaffold caching framework, and synthetic data generation |
+| `plots` | `basic`; ... | Plotting functions |
