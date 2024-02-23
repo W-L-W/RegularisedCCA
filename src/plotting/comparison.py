@@ -29,7 +29,7 @@ def row_plot3(data,algos,nice_fn,inds,folder_title=False, legend_prefix='', y_la
         cv_obj = get_cv_obj_from_data(data,algo) #,MVN=MVN)
         ax,df = corr_plotter(cv_obj,nice_fn,inds,axs[idx], legend_prefix=legend_prefix)
         df_dict[algo] = df
-    if folder_title: fig.suptitle(data.folder)
+    if folder_title: fig.suptitle(data.rel_path)
     # give first column the y-axis label
     axs[0].set_ylabel(y_label, fontsize=label_size, labelpad=label_padding)
     return fig, axs, df_dict
@@ -106,7 +106,7 @@ def subsp_row_plot(data,algos,inds,folder_title=False): #MVN=False):
         cv_obj = get_cv_obj_from_data(data,algo) #,MVN=MVN)
         ax,df = subsp_corr_plotter(cv_obj,inds,axs[idx])
         df_dict[algo] = df
-    if folder_title: fig.suptitle(data.folder)
+    if folder_title: fig.suptitle(data.rel_path)
     return fig, df_dict
 
 def subsp_corr_plotter(cv_obj,inds,ax):
@@ -136,7 +136,7 @@ def plot_cv_subspace(cv_object,inds,ax,logx=False):
 
 
 # Stability
-def stab_row_plot(data,algos,criteria,inds,folder_title=False):
+def stab_row_plot(data,algos,criteria,inds,rel_path_title=False):
     """Plot cv sums of the different instability criteria for each algo"""
     # squeeze=False ensures that axs is a 2D array
     fig, axs = plt.subplots(ncols=len(algos),nrows=len(criteria),figsize=(4*len(algos)+4,5*len(criteria)),sharey=True, squeeze=False)
@@ -160,7 +160,7 @@ def stab_row_plot(data,algos,criteria,inds,folder_title=False):
             # Set the legend with the desired lines and labels
             ax.legend(lines, labels,loc='upper right')
 
-    if folder_title: fig.suptitle(data.folder)
+    if rel_path_title: fig.suptitle(data.rel_path)
     return fig, df_dict
 
 def stab_plotter(cv_obj,criterion,inds,ax,top_row=True):

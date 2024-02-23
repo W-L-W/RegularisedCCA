@@ -55,7 +55,8 @@ def get_pens(algo: str, n: int, mode: str ='run'):
     """
     if mode == 'debug':
         if algo == 'wit': pens = np.logspace(np.log10(2),np.log10(4),2)
-        else: pens = np.logspace(-3, -1, 2)
+        elif algo in ['gglasso', 'suo']: pens = np.logspace(-3, 3, 2)
+        elif algo == 'ridge': pens = np.array([10**-3, 1 - 10**-3])
     elif mode == 'run':
         if algo == 'wit': 
             pens = np.logspace(np.log10(1),np.log10(7),15)

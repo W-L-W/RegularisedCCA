@@ -8,7 +8,7 @@ from sklearn.model_selection import KFold
 from collections import OrderedDict
 from typing import List
 
-from src.scaffold.io_preferences import mvn_folder_name
+from src.scaffold.io_preferences import output_folder, rel_path_mvn
 from src.algos import get_ests_n_time
 import src.utils as utils
 
@@ -16,11 +16,11 @@ import src.utils as utils
 # This file is messy, and would benefit from refactoring.
 # However, I have attempted to maintain certain abstraction barriers to keep modularity
 # The key flexibility I want to allow is for a user to apply this scaffold to analyse new datasets and with new CCA algorithms
-# while only having to edit code in the interface.py file
+# while only having to edit code in the io_preferences.py file
 
 # E.g. though this file contains many different ways to save and load data and associated folder name Conventions
 # these always build off the folder from a data object
-# and the folders for data objects are defined in the interface.py file
+# and the folders for data objects are defined in the io_preferences.py file
 
 
 # # # Conventions: 
@@ -41,13 +41,15 @@ def ests_to_csv(Ue,Ve,file_name):
 
 
 class Data():
-    def __init__(self,X,Y,folder_name=None,X_labs=None,Y_labs=None):
+    def __init__(self,X,Y,rel_path=None,X_labs=None,Y_labs=None):
         assert type(X)==type(Y)==np.ndarray, 'non-array data will mess up indexing'
         self.X = X
         self.Y = Y
         self.p,self.q = X.shape[1],Y.shape[1]
         self.n = X.shape[0]
-        if folder_name: self.folder = folder_name
+        if rel_path: 
+            self.rel_path = rel_path
+            self.folder_detail = output_folder(rel_path, 'detail')
         self.X_labs = X_labs
         self.Y_labs = Y_labs
 
@@ -72,7 +74,7 @@ class SolutionPath():
         # without try except so that easier to debug in future
 
     def _create_estimate_folder(self):
-        folder_name = self.data.folder + 'estimates/'
+        folder_name = self.data.folder_detail + 'estimates/'
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
@@ -189,7 +191,7 @@ class CV():
         self.summary_folder = self._create_summary_folder()
 
     def _create_summary_folder(self):
-        folder_name = self.data.folder + 'summary/'
+        folder_name = self.data.folder_detail + 'summary/'
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
@@ -221,10 +223,10 @@ class CV():
         X,Y = self.data.X,self.data.Y
         for fold,split in enumerate(kf.split(X,Y)):
             train_ids,test_ids = split
-            folder_name = self.data.folder + f'cv{fold}of{self.folds}/'
+            split_rel_path = self.data.rel_path + f'cv{fold}of{self.folds}/'
             X_labs = self.data.X_labs
             Y_labs = self.data.Y_labs
-            train_data = Data(X[train_ids],Y[train_ids],folder_name=folder_name,
+            train_data = Data(X[train_ids],Y[train_ids],rel_path=split_rel_path,
                             X_labs=X_labs,Y_labs=Y_labs)
             test_data  = Data(X[test_ids],Y[test_ids],
                             X_labs=X_labs,Y_labs=Y_labs)
@@ -451,7 +453,7 @@ class MVNSolPath(SolutionPath):
         self.summary_folder = self._create_summary_folder()
 
     def _create_summary_folder(self):
-        folder_name = self.data.folder + 'summary/'
+        folder_name = self.data.folder_detail + 'summary/'
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
@@ -529,7 +531,7 @@ class MVNData(Data):
 
 
 class MVNDist():
-    def __init__(self,Sig,p,q=None,cov_desc=None):
+    def __init__(self,Sig,p,q=None,path_stem=None):
         self.p = p
         self.Sig = Sig
         if q is not None:
@@ -538,7 +540,7 @@ class MVNDist():
         else:
             self.q = Sig.shape[0] - p
 
-        self.cov_desc=cov_desc
+        self.path_stem=path_stem
         self.U,self.V,self.D = utils.cca_from_cov_mat(Sig,p)
 
     def _check_dims_consistent(self):
@@ -547,26 +549,10 @@ class MVNDist():
 
     def gen_data(self,rs,n):
         X,Y = utils.data_from_covariance(self.Sig,self.p,self.q,n,rs)
-        folder_name = self._get_folder_name(rs,n)
+        folder_name = self._get_rel_path(rs,n)
         return MVNData(X,Y,rs,mvn_dist=self,folder_name=folder_name)
 
-    def _get_folder_name(self,rs,n):
+    def _get_rel_path(self,rs,n):
         # previously noted useful for metric_plotter #TODO check used there and delete if not
-        name =  mvn_folder_name(self.cov_desc, self.p, self.q, n, rs)
+        name =  rel_path_mvn(self.path_stem, n, rs)
         return name
-         
-
-
-class MVNFactory():
-    def __init__(self,cov_desc,machine):
-        """
-        Inputs:
-        cov_desc - string summarising covariance type
-        machine - function creating Sig from pair p,q
-        """
-        self.cov_desc = cov_desc
-        self.machine = machine
-
-    def build_mvn(self,p,q):
-        Sig = self.machine(p,q)
-        return MVNDist(p,q,Sig,cov_desc = self.cov_desc)

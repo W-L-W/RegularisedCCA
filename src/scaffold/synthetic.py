@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import os
+from typing import Iterable
 
 from src.scaffold.wrappers import compute_everything
 from src.scaffold.core import MVNCV, MVNDist, MVNFactory
@@ -37,12 +38,11 @@ bootstrap_params = {
 
 # for converting between string identifiers and three defining arguments
 def pboot_params_to_string(dataset:str, regn:str, param_choice:str):
-    return f'{dset_abbrev[dataset]}_{reg_abbrev[regn]}_{param_choice}'
+    return f'pboot_{dset_abbrev[dataset]}_{reg_abbrev[regn]}_{param_choice}'
 
 def pboot_string_to_params(pboot_string:str):
-    dset, regn, param_choice = pboot_string.split('_')
+    _, dset, regn, param_choice = pboot_string_to_params(pboot_string)
     return dset_abbrev_inv[dset], reg_abbrev_inv[regn], param_choice
-
 
 
 def save_pboot_cov(dataset:str, regn:str, param_choice:str):
@@ -63,7 +63,7 @@ def load_pboot_mvn(dataset:str, regn:str, param_choice:str):
         save_pboot_cov(dataset, regn, param_choice)
     npzfile = np.load(filename)
     p, Sig = npzfile['p'], npzfile['Sig']
-    return MVNDist(Sig,p,cov_desc = f'pboot/{dataset}/{regn}_{param_choice}')
+    return MVNDist(Sig,p,path_stem = f'pboot/{dataset}/{regn}_{param_choice}')
 
 def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'): # -> Tuple[int, PSDMatrix]
     print('loading dataset')
@@ -120,57 +120,78 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'
 # CONVENIENT STRUCT FOR SYNTHETIC DATA
 #######################################
 # and utility functions exploiting this struct
+
+def pboot_setting(pboot_string: str, algo: str, n: int, folds: int, K: int):
+    dataset, regn, param_choice = pboot_string_to_params(pboot_string)
+    mvn = load_pboot_mvn(dataset, regn, param_choice)
+    return Setting(mvn, algo, n, folds, K)
+
+
+
+def synth_setting(cov_type: str, algo: str, p: int, q: int, n: int, folds: int, K: int):
+    pass
+# to implement once re-hashed the cov fac idea
+
 class Setting():
-    def __init__(self,cov_type,algo,p,q,n,folds,K): #,rss
-        self.cov_type = cov_type
-        self.algo = algo
-        self.p = p
-        self.q = q
-        self.n = n
-        self.folds = folds
-        self.K = K
-        #self.rss = rss
-        self.tuple = (cov_type,algo,p,q,n,folds,K)
+    def __init__(s, mvn: MVNDist, algo: str, n: int, folds: int, K: int):
+        s.mvn = mvn
+        s.algo = algo
+        s.n = n
+        s.folds = folds
+        s.K = K
+        s.tuple = (mvn, algo, n, folds, K)
 
     def __str__(s):
         return f'cov: {s.cov_type}, algo: {s.algo}, (p,q,n): {(s.p,s.q,s.n)}, folds: {s.folds}, K: {s.K}'#', rss: {s.rss}'
 
-def load_mvn_cv(setting,rs):
-    (cov_type,algo,p,q,n,folds,K) = setting.tuple
-    fac = cov_type_to_fac(cov_type)
-    mvn = fac.build_mvn(p,q)
+
+class PenObjs(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Validate that all values are either 'min' or 'max'
+        assert all(value in ['min', 'max'] for value in self.values()), \
+            "All values must be 'min' or 'max'."
+    def __setitem__(self, key, value):
+        # Ensure only 'min' or 'max' can be set as values
+        if value not in ['min', 'max']:
+            raise ValueError("Value must be 'min' or 'max'.")
+        super().__setitem__(key, value)
+
+    
+def one_seed_cv_obj(setting: Setting, rs: int):
+    (mvn, algo, n, folds, K) = setting.tuple
     data = mvn.gen_data(rs,n)
     cv_obj = MVNCV(data,folds,algo,K)
     return cv_obj
 
-def compute_everything_single_seed(setting,rs,pen_list):
-    """Well everything I care about for now..."""
-    cv_obj = load_mvn_cv(setting,rs)
+def one_seed_fit(setting: Setting ,rs: int, pen_list: Iterable[float]):
+    cv_obj = one_seed_cv_obj(setting,rs)
     compute_everything(cv_obj, pen_list)
 
-def load_metric_dfs(setting,rs):
-    cv_obj = load_mvn_cv(setting,rs)
+def load_metric_dfs(setting: Setting, rs: int):
+    cv_obj = one_seed_cv_obj(setting,rs)
     df_full = cv_obj.load_df_oracle()
     df_cvav = cv_obj.load_summary('cv averages')
     return df_full, df_cvav
 
-def best_pen(df,obj_string,best='min'):
-    if best=='min':
-        return df.loc[df[obj_string].argmin(),'pen']
-    elif best=='max':
-        return df.loc[df[obj_string].argmax(),'pen']
+def best_pen(df: pd.DataFrame, objv: str, min_or_max='min'):
+    """Return the penalty that {'min','max'}imises the given objv column of df
+    df must have columns: 'pen' and objv """
+    if min_or_max=='min':
+        return df.loc[df[objv].argmin(),'pen']
+    elif min_or_max=='max':
+        return df.loc[df[objv].argmax(),'pen']
 
 # Key improvement over previous version is the ability to merge the full and cv versions
-def best_pen_rows(setting,rs,pen_objs):
+def best_pen_rows(setting: Setting, rs: int, pen_objs: PenObjs):
     df_full,df_cvav = load_metric_dfs(setting,rs)
     df_cv_means = df_cvav.xs('mean',axis=1, level=1, drop_level=True).reset_index()
     
-    # combine into a single df which we give short name for convenience...
+    # combine into a single dataframe, used for remainder of the function
     df = pd.merge(df_full,df_cv_means,on='pen',suffixes=['','_cv'])
 
     # collect dict of best pens:
     pen_dict = {objv: best_pen(df,objv,sign) for objv,sign in pen_objs.items()}
-    ## print(pen_dict['rho1'],pen_dict['rho1_cv']) #for debugging
 
     #select corresponding rows
     rows = [df[df['pen']==pen_dict[objv]] for objv in pen_objs.keys()]
@@ -179,7 +200,7 @@ def best_pen_rows(setting,rs,pen_objs):
     df['min_or_max'] = pen_objs.values()
     return df
 
-def av_best_pen_rows(setting,rss,pen_objs):
+def av_best_pen_rows(setting: Setting ,rss: Iterable[int], pen_objs: PenObjs):
     single_dfs = [best_pen_rows(setting,rs,pen_objs) for rs in rss]
     df_comb = pd.concat(single_dfs)
     df = df_comb.groupby(['pen_obj','min_or_max']).agg([np.mean,np.std]).reset_index()
@@ -188,6 +209,13 @@ def av_best_pen_rows(setting,rss,pen_objs):
         df[s]=v
     return df
 
+def vary_n_best_rows(algo: str, mvn: MVNDist, folds: int, K: int, ns: Iterable[int], rss: Iterable[int], pen_objs: PenObjs):
+    settings = [Setting(mvn,algo,n,folds,K) for n in ns]
+
+    comb_best_rows = [av_best_pen_rows(setting,rss,pen_objs) for setting in settings]
+
+    return pd.concat(comb_best_rows)
+
 def select_values(df_best_rows,met):
     """met is string of what metric you want to plot"""
     vals = [(met,'mean'),(met,'std')]
@@ -195,83 +223,68 @@ def select_values(df_best_rows,met):
     df.columns = df.columns.set_levels(['mean','std'],level=0).set_names(met,level=0)
     return df
 
-def vary_n_best_rows(algo,cov_type,p,q,folds,K,ns,rss,pen_objs):
-    settings = [Setting(cov_type,algo,p,q,n,folds,K) for n in ns]
-
-    comb_best_rows = [av_best_pen_rows(setting,rss,pen_objs) for setting in settings]
-
-    return pd.concat(comb_best_rows)
-
 
 
 # PURELY SYNTHETIC DATA GENERATION
 ##################################
-def cov_type_to_fac(cov_type: str):
-    """convert from string descriptor to cov mat for Multivariate Normal (MVN)"""
-    # mac is short for machine (working in the factory)
+def synth_mvn(cov_type: str, p: int, q: int):
+    """Return MVNDist object for a given covariance type and dimension"""
     if cov_type == '3spike_id':
-        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='identity')
+        Sig = covs.cov_from_three_spikes(p,q,method='identity')
     elif cov_type == '3spike_to':
         mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='toeplitz')
     elif cov_type == '3spike_sp':
-        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse')
+        Sig = covs.cov_from_three_spikes(p,q,method='sparse')
     elif cov_type == '3spike_sp_sep':
-        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
+        Sig = covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
     elif cov_type == '3spike_sp_old':
-        mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
+        Sig = covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
     elif cov_type == 'suo_id_unif':
-        mac = lambda p,q: covs.suo_basic('identity',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_basic('identity',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_to_unif':
-        mac = lambda p,q: covs.suo_basic('toeplitz',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_basic('toeplitz',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_sp_unif':
-        mac = lambda p,q: covs.suo_basic('sparse',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_basic('sparse',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_id_rand':
-        mac = lambda p,q: covs.suo_rand('identity',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_rand('identity',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_to_rand':
-        mac = lambda p,q: covs.suo_rand('toeplitz',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_rand('toeplitz',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_sp_rand':
-        mac = lambda p,q: covs.suo_rand('sparse',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_rand('sparse',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_lr_rand':
-        mac = lambda p,q: covs.suo_rand('low_rank',p,q,rho=0.9,ms=5,ps=5)
+        Sig = covs.suo_rand('low_rank',p,q,rho=0.9,ms=5,ps=5)
     elif cov_type == 'suo_sp_rand50':
-        mac = lambda p,q: covs.suo_rand('sparse',p,q,rho=0.9,ms=50,ps=50)
+        Sig = covs.suo_rand('sparse',p,q,rho=0.9,ms=50,ps=50)
     elif cov_type == 'erdos':
         from gglasso.helper.data_generation import generate_precision_matrix
-        def mac(p,q):
-            p_tot = p + q
-            Sig, Theta = generate_precision_matrix(p=p_tot, M=1, style='erdos', prob=0.1, seed=1234)
-            return Sig
+        p_tot = p + q
+        Sig, _ = generate_precision_matrix(p=p_tot, M=1, style='erdos', prob=0.1, seed=1234)
     elif cov_type == 'powerlaw':
         from gglasso.helper.data_generation import generate_precision_matrix
-        def mac(p,q):
-            p_tot = p + q
-            # got mysterious networkx error for m=p=200 when had seed 1234 but OK with seed 1200 so hacky fix...
-            nxseed = 1200 if p==200 else 1234
-            Sig, Theta = generate_precision_matrix(p=p_tot, M=1, style='powerlaw',gamma=3, seed=nxseed)
-            rng = np.random.default_rng(seed=0)
-            perm = rng.permutation(p_tot)
-            # in old version I had line below other way round and it did something strange with copy assignment
-            final_Sig = Sig[np.ix_(perm,perm)]
-            return final_Sig
+        p_tot = p + q
+        # got mysterious networkx error for m=p=200 when had seed 1234 but OK with seed 1200 so hacky fix...
+        nxseed = 1200 if p==200 else 1234
+        structuredSig, _ = generate_precision_matrix(p=p_tot, M=1, style='powerlaw',gamma=3, seed=nxseed)
+        rng = np.random.default_rng(seed=0)
+        perm = rng.permutation(p_tot)
+        # in old version I had line below other way round and it did something strange with copy assignment
+        Sig = structuredSig[np.ix_(perm,perm)]
     elif cov_type == '10spikes_size4_sp':
-        mac = lambda p,q: covs.geom_corr_decay_sparse_weight_multi_spike(
+        Sig = covs.geom_corr_decay_sparse_weight_multi_spike(
             p, q, K=10, decay_ratio=0.9, spike_size=4
         )
     elif cov_type == '8spikes_size3_sp_weighted':
-        mac = lambda p,q: covs.geom_corr_decay_sparse_weight_multi_spike(
+        Sig = covs.geom_corr_decay_sparse_weight_multi_spike(
             p, q, K=8, decay_ratio=0.9, spike_size=3, method='sparse', geom_param=0.9
         )
     elif cov_type == 'bach_latent':
-        def mac(p,q):
-            (nlatents,decay_ratio,supp_size) = 10,0.9,3
-            Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size)
-            return Sig
+        (nlatents,decay_ratio,supp_size) = 10,0.9,3
+        Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size)
     elif cov_type == 'bach_latent_sp':
-        def mac(p,q):
-            (nlatents,decay_ratio,supp_size) = 10,0.9,3
-            Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size,method='sparse')
-            return Sig
+        (nlatents,decay_ratio,supp_size) = 10,0.9,3
+        Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size,method='sparse')
     else:
         raise Exception(f'unrecognised cov_type {cov_type}- perhaps not yet implemented?')
 
-    return MVNFactory(cov_type, mac)
+    return MVNDist(Sig, p, path_stem = f'synth/{cov_type}/p{p}q{q}')
+# to review: the syntax for this saving
