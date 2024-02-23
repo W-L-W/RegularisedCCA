@@ -2,8 +2,10 @@
 RegularisedCCA.egg-info/
 /**/__pycache__
 
+rough_pad.md
+
 tests/play.py
 #expmts/**/estimates/
-expmts/out/detail
+expmts/output/detail
 real_data/**/*
 # for now want to keep local and have minimal data on github; later will likely need to add in

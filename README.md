@@ -1,77 +1,80 @@
-# Next tasks:
-- Nutrimouse pbootstrap fit and oracle panel recover
-    Have now successfully created a numpy array for the parametric bootstrap nutrimouse
-    Next to copy and paste over the oracle plots (make sure they exist)
-    Then to fit the model and see if the oracle plots render
-    This will require figuring out how to save plots effectively
-    And further experimentation with gitignore template matching
+# RegularisedCCA
 
-# Later tasks:
-- Add a test that creates synthetic covariance and check that CCA function recovers desired structure
-- What are the different types of plot that need to be fitted into the new framework?
+This repository contains the code for the illustrations in the preprint "...", which can be found [here](link-to-follow).
 
-# Wed 14th Feb; Planning
-The notes above do seem reasonable. Review the code base and get a better feel about how to implement these.
-Checked with the results in the document and cvm3 is indeed CV minus factor of 3 as hoped.
-So now need code to fit / run...
-Important material seems to be in oop_utils; compute everything and setting
-Some untidiness of distribution of code between wrappers and synthetic - will need to review that at some point but worth cracking on for now to get a better idea of what to deal with
+We provide the run scripts for obtaining the numerical results and plots in the paper in `expmts/input_scripts` (see [Running Experiments](#running-experiments)); this uses python code in the `src` that has been packaged as a python package (see [Package Structure](#package-structure)).
 
-Recall that for now want to produce minimal quantity of plots required for essay.  
-This is what is required for the `essay.ipynb` file; so can work through that!
-Yes, got the assertion error that I was hoping for. Happy days.
+## Installation
+### Summary
+Most required packages are available on conda (pandas, jupyter, matplotlib, scikit-learn, statsmodels, pygraphviz, plotly); however the following two more specific packages need to be installed via pip:
+- cca-zoo
+- gglasso
 
-# Recall formatting for load df summary
-Changed load_dffull to load_df_oracle's for MVNSolPath and MVNCV
-Hopefully will all work now?
+Recent versions of these packages will hopefully be sufficient to run all the code in this repository; we found conda helpful to find a compatible set of these required packages. 
+One possible set of versions is given in the `environment.yml` file, and used in the more detailed instructions in the next subsection, but users may also like to experiment with other tools for dependency management.
 
 
+### Detail
+1. Clone the repo
+```
+git clone https://github.com/W-L-W/RegularisedCCA.git
+```
+
+2. Create the `regularised-cca-env` environment from yml file 
+```
+conda env create -f environment.yml
+```
+
+3. Activate `regularised-cca-env` environment
+```
+conda activate regularised-cca-env
+```
+
+4. Pip install `src` as a package: navigate to the parent directory of `src` and run
+```
+pip install -e .
+```
+(the flag -e is for editable mode, which will allow you to make changes to the files in `src` without having to reinstall the package)
 
 
-# Tuesday 20 Feb:
-For return on Wednesday - check that the new file structure has not broken the saving.py content then commit, push, then keep going through `essay.ipynb` for nutrimouse in that script
+### Troubleshooting
+I previously encountered a problem with my matplotlib version, that appeared to be fixed by running
+```
+pip install --upgrade --force-reinstall matplotlib
+```
 
-# New experiment folder structure
-Does actually make sense I think.
-Idea is that there will be a small number of scripts in `expmts/in` that can be run from the command line
-Some of these will be of the flavour 'compute everything' and create many files in `expmts/out/detail`
-Others will be of the flavour 'create certain plots'
-There will be a lot of plots, but a manageable number, and for convenience of putting into the overleaf file, I think it is in fact OK to have these in a single folder
-# A topological ordering
-Of the files in this project to prevent any circular import errors
-(no dependencies at top)
-utils (linalg; cca, covs)
-algos (gCCA, sCCA, sPLS)
-scaffold (incoming; core)
-real_data (loading; styling)
-scaffold (wrappers; synthetic)
-plots (basic; the_rest)
+Please don't hesitate to reach out if you have any issues.
 
-Extra notes:
-This is one possible order, there are many other options also (e.g. real_data.styling has no dependnecies, it only needs np and pd)
+## Running experiments
+
+We provide the run scripts for obtaining the numerical results and plots in the paper in `expmts/input_scripts`.
+The associated output is generated to the `expmts/output` directory.
+Plots and lightweight summaries are available in the `plots` and `processed` subdirectories.
+Estimated weight matrices are all cached to `expmts/output/detail` when the fitting scripts are run; these cached files are numerous and large, so the `detail` subdirectory is git-ignored.
 
 
+## Data
+We include csv files of all the raw data used for these experiments in `real_data`, along with utility functions for loading data matrices and variable labels in standardised format in `real_data.loading.py`.
 
-# Some-day maybe
-- Fun reading: https://medium.com/brexeng/avoiding-circular-imports-in-python-7c35ec8145ed
 
-# Archival Notes
-## Plot classification
-Data Histogram
-Bubble plots and derivatives
-Visualising Graphical covariance structures
+## Package structure
+To avoid circular import errors, we have structured the files in this project to satisfy the following topological ordering (no dependencies at top, semi-colons in brackets indicate left-to-right dependencies, commas indicate that there are no dependencies between adjacent files):
 
-Oracle panel
-Plots from section 8: corr and stab along traj, corr decay, traj_comp, overlap
-Biplots (need to integrate between utils and plot utils)
+utils (linalg; cca, covs)  
+algos (gCCA, sCCA, sPLS; combined)  
+scaffold (io_preferences; core)  
+real_data (loading; styling)  
+scaffold (wrappers; synthetic)  
+plots (basic; all-other-plots)  
 
-## Interacting with packages and import issues
-
-File system:
-- could add paths with sys and os
-- copilot suggested could:
-  Install src as a package: If src is a Python package (i.e., it contains an `__init__.py` file), you can install it with pip. Navigate to the parent directory of src in your terminal and run `pip install -e .`. This installs the current directory as a package in editable mode, which means you can modify the code in the package without having to reinstall it. After doing this, you should be able to import src from anywhere.
-- for now will use relative imports (final copilot suggestion)
-
-Changed mind and did a pip install -e. This required creating a setup file. Don't know if best practice, but seems to work, hopefully can consult with someone more experienced at some point and get some feedback on this.
-
+| Directory | Files | Description |
+| --------- | ----- | ----------- |
+| utils | linalg; cca, covs | basic utility functions for linear algebra and canonical correlation analysis |
+| Directory | Files | Description |
+| --------- | ----- | ----------- |
+| utils | linalg; cca, covs | Basic utility functions for linear algebra and canonical correlation analysis |
+| algos | gCCA, sCCA, sPLS; combined | Algorithms for graphical CCA, sparse CCA, sparse PLS, and unified interface |
+| scaffold | io_preferences; core | Input/output preferences and core functionality of caching framework for comparison of different estimates |
+| real_data | loading; styling | For loading data matrices and variable labels in standardized format (uses objects from `scaffold.core`) |
+| scaffold | wrappers; synthetic | Wrapper functions exploiting the scaffold caching framework, and synthetic data generation |
+| plots | basic; ... | Plotting functions |
