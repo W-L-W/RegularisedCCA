@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 dir_path_this_script = os.path.dirname(os.path.realpath(__file__))
 real_data_dir = dir_path_this_script+'/../../real_data'
-base_output_dir = dir_path_this_script+'/../../expmts/out'
+base_output_dir = dir_path_this_script+'/../../expmts/output'
 plot_dir = base_output_dir + '/plots/'
 
 
