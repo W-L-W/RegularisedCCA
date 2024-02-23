@@ -43,5 +43,6 @@ for algo in algos:
     compute_everything(cv_obj, get_pens(algo, data.n, mode))
 
 fig_panel = panel_plot(data)
-save_mplib(fig_panel, f'pboot_panel_{abbrev[dataset]}_{abbrev[regn]}_{param_choice}')
+suffix = '_debug' if mode == 'debug' else ''
+save_mplib(fig_panel, f'pboot_panel_{abbrev[dataset]}_{abbrev[regn]}_{param_choice}'+ suffix)
 

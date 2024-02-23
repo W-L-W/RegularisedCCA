@@ -3,18 +3,24 @@ import numpy as np
 import pandas as pd
 import os
 
-from src.scaffold.wrappers import cov_type_to_fac, compute_everything
+from src.scaffold.wrappers import compute_everything
 from src.scaffold.core import MVNCV, MVNDist, MVNFactory
 from src.utils import covs
 from src.utils import gram_schmidt
 from src.algos import first_K_ccs_lazy
 
 
-from real_data.loading import get_dataset, pboot_filename
+from real_data.loading import get_dataset, pboot_filename, dset_abbrev, dset_abbrev_inv
 
 
 # PARAMETRIC BOOTSTRAP
 ######################
+reg_abbrev = {
+    'gglasso': 'ggl',
+    'ridge': 'rdg',
+    'suo_ridge': 'suoR'
+}
+reg_abbrev_inv = {v:k for k,v in reg_abbrev.items()}
 
 # dictionary to determine behaviour of parametric bootstrap
 bootstrap_params = {
@@ -29,26 +35,37 @@ bootstrap_params = {
 # TODO: have a more systematic way to determine penalty settings
 # for now used factor of 3 smaller penalty than cv optimal
 
-def save_pboot_cov(dataset:str, regn:str, regn_mode:str):
-    p, Sig = gen_parametric_bootstrap_cov(dataset, regn, regn_mode)
-    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.npz')
+# for converting between string identifiers and three defining arguments
+def pboot_params_to_string(dataset:str, regn:str, param_choice:str):
+    return f'{dset_abbrev[dataset]}_{reg_abbrev[regn]}_{param_choice}'
+
+def pboot_string_to_params(pboot_string:str):
+    dset, regn, param_choice = pboot_string.split('_')
+    return dset_abbrev_inv[dset], reg_abbrev_inv[regn], param_choice
+
+
+
+def save_pboot_cov(dataset:str, regn:str, param_choice:str):
+    """To determine where the regularised cov mat is saved as npz file for quick loading later"""
+    p, Sig = gen_parametric_bootstrap_cov(dataset, regn, param_choice)
+    filename = pboot_filename(dataset, f'{regn}_{param_choice}_cov.npz')
     # make directory if it doesn't exist already
     directory = os.path.dirname(filename)
     if not os.path.exists(directory):
         os.makedirs(directory)
     np.savez(filename, p=p, Sig=Sig)
 
-def load_pboot_mvn(dataset:str, regn:str, regn_mode:str):
-    filename = pboot_filename(dataset, f'{regn}_{regn_mode}_cov.npz')
+def load_pboot_mvn(dataset:str, regn:str, param_choice:str):
+    filename = pboot_filename(dataset, f'{regn}_{param_choice}_cov.npz')
     # if file does not exist, need to generate it first
     if not os.path.exists(filename):
         print('Covariance matrix file does not exist, so generating it now')
-        save_pboot_cov(dataset, regn, regn_mode)
+        save_pboot_cov(dataset, regn, param_choice)
     npzfile = np.load(filename)
     p, Sig = npzfile['p'], npzfile['Sig']
-    return MVNDist(Sig,p,cov_desc = f'pboot/{dataset}/{regn}_{regn_mode}')
+    return MVNDist(Sig,p,cov_desc = f'pboot/{dataset}/{regn}_{param_choice}')
 
-def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'): # -> Tuple[int, PSDMatrix]
+def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'): # -> Tuple[int, PSDMatrix]
     print('loading dataset')
     data = get_dataset(dataset)
     print('loaded dataset')
@@ -60,7 +77,7 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', regn_mode = 'cv'): 
     emp_cov = Z.T @ Z/n
 
     # get penalty
-    params = bootstrap_params[(dataset,regn,regn_mode)]
+    params = bootstrap_params[(dataset,regn,param_choice)]
 
     # estimate regularised covariance
     if regn == 'ridge':
