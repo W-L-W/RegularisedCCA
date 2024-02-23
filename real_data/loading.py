@@ -6,7 +6,15 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 from src.scaffold.core import Data
-from src.scaffold.io_preferences import real_data_dir, output_folder_real_data
+from src.scaffold.io_preferences import real_data_dir, rel_path_real_data
+
+# Abbreviations for more compact strings for output file names
+dset_abbrev = {
+    'nutrimouse': 'nm',
+    'breastdata': 'bd',
+    'microbiome': 'mb',
+}
+dset_abbrev_inv = {v: k for k, v in dset_abbrev.items()}
 
 # Master function for loading datasets
 def get_dataset(dataset: str):
@@ -19,7 +27,7 @@ def get_dataset(dataset: str):
         X, Y, X_labs, Y_labs = get_microbiome()
     else:
         print(f'Unrecognised dataset: {dataset}')
-    return Data(X, Y, X_labs=X_labs, Y_labs=Y_labs, folder_name=output_folder_real_data(dataset),)
+    return Data(X, Y, X_labs=X_labs, Y_labs=Y_labs, rel_path=rel_path_real_data(dataset),)
 
 
 # Shared helper functions
