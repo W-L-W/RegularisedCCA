@@ -63,7 +63,7 @@ def load_pboot_mvn(dataset:str, regn:str, param_choice:str):
         save_pboot_cov(dataset, regn, param_choice)
     npzfile = np.load(filename)
     p, Sig = npzfile['p'], npzfile['Sig']
-    return MVNDist(Sig,p,path_stem = f'pboot/{dataset}/{regn}_{param_choice}')
+    return MVNDist(Sig, p, path_stem = f'pboot/{dataset}/{regn}_{param_choice}')
 
 def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'): # -> Tuple[int, PSDMatrix]
     print('loading dataset')
@@ -227,39 +227,39 @@ def select_values(df_best_rows,met):
 
 # PURELY SYNTHETIC DATA GENERATION
 ##################################
-def synth_mvn(cov_type: str, p: int, q: int):
+def synth_mvn(cov_desc: str, p: int, q: int):
     """Return MVNDist object for a given covariance type and dimension"""
-    if cov_type == '3spike_id':
+    if cov_desc == '3spike_id':
         Sig = covs.cov_from_three_spikes(p,q,method='identity')
-    elif cov_type == '3spike_to':
+    elif cov_desc == '3spike_to':
         mac = lambda p,q: covs.cov_from_three_spikes(p,q,method='toeplitz')
-    elif cov_type == '3spike_sp':
+    elif cov_desc == '3spike_sp':
         Sig = covs.cov_from_three_spikes(p,q,method='sparse')
-    elif cov_type == '3spike_sp_sep':
+    elif cov_desc == '3spike_sp_sep':
         Sig = covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
-    elif cov_type == '3spike_sp_old':
+    elif cov_desc == '3spike_sp_old':
         Sig = covs.cov_from_three_spikes(p,q,method='sparse',d1=0.95,d2=0.5,d3=0.4)
-    elif cov_type == 'suo_id_unif':
+    elif cov_desc == 'suo_id_unif':
         Sig = covs.suo_basic('identity',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_to_unif':
+    elif cov_desc == 'suo_to_unif':
         Sig = covs.suo_basic('toeplitz',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_sp_unif':
+    elif cov_desc == 'suo_sp_unif':
         Sig = covs.suo_basic('sparse',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_id_rand':
+    elif cov_desc == 'suo_id_rand':
         Sig = covs.suo_rand('identity',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_to_rand':
+    elif cov_desc == 'suo_to_rand':
         Sig = covs.suo_rand('toeplitz',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_sp_rand':
+    elif cov_desc == 'suo_sp_rand':
         Sig = covs.suo_rand('sparse',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_lr_rand':
+    elif cov_desc == 'suo_lr_rand':
         Sig = covs.suo_rand('low_rank',p,q,rho=0.9,ms=5,ps=5)
-    elif cov_type == 'suo_sp_rand50':
+    elif cov_desc == 'suo_sp_rand50':
         Sig = covs.suo_rand('sparse',p,q,rho=0.9,ms=50,ps=50)
-    elif cov_type == 'erdos':
+    elif cov_desc == 'erdos':
         from gglasso.helper.data_generation import generate_precision_matrix
         p_tot = p + q
         Sig, _ = generate_precision_matrix(p=p_tot, M=1, style='erdos', prob=0.1, seed=1234)
-    elif cov_type == 'powerlaw':
+    elif cov_desc == 'powerlaw':
         from gglasso.helper.data_generation import generate_precision_matrix
         p_tot = p + q
         # got mysterious networkx error for m=p=200 when had seed 1234 but OK with seed 1200 so hacky fix...
@@ -269,22 +269,22 @@ def synth_mvn(cov_type: str, p: int, q: int):
         perm = rng.permutation(p_tot)
         # in old version I had line below other way round and it did something strange with copy assignment
         Sig = structuredSig[np.ix_(perm,perm)]
-    elif cov_type == '10spikes_size4_sp':
+    elif cov_desc == '10spikes_size4_sp':
         Sig = covs.geom_corr_decay_sparse_weight_multi_spike(
             p, q, K=10, decay_ratio=0.9, spike_size=4
         )
-    elif cov_type == '8spikes_size3_sp_weighted':
+    elif cov_desc == '8spikes_size3_sp_weighted':
         Sig = covs.geom_corr_decay_sparse_weight_multi_spike(
             p, q, K=8, decay_ratio=0.9, spike_size=3, method='sparse', geom_param=0.9
         )
-    elif cov_type == 'bach_latent':
+    elif cov_desc == 'bach_latent':
         (nlatents,decay_ratio,supp_size) = 10,0.9,3
         Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size)
-    elif cov_type == 'bach_latent_sp':
+    elif cov_desc == 'bach_latent_sp':
         (nlatents,decay_ratio,supp_size) = 10,0.9,3
         Sig = covs.cov_from_latents(p,q,nlatents,decay_ratio,supp_size,method='sparse')
     else:
-        raise Exception(f'unrecognised cov_type {cov_type}- perhaps not yet implemented?')
+        raise Exception(f'unrecognised cov_type {cov_desc}- perhaps not yet implemented?')
 
-    return MVNDist(Sig, p, path_stem = f'synth/{cov_type}/p{p}q{q}')
+    return MVNDist(Sig, p, path_stem = f'synth/{cov_desc}/p{p}q{q}')
 # to review: the syntax for this saving
