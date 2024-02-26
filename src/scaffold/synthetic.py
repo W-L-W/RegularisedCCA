@@ -63,7 +63,7 @@ def load_pboot_mvn(dataset:str, regn:str, param_choice:str):
         save_pboot_cov(dataset, regn, param_choice)
     npzfile = np.load(filename)
     p, Sig = npzfile['p'], npzfile['Sig']
-    return MVNDist(Sig, p, path_stem = f'pboot/{dataset}/{regn}_{param_choice}')
+    return MVNDist(Sig, p, path_stem = f'pboot/{dataset}/{regn}_{param_choice}/')
 
 def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'): # -> Tuple[int, PSDMatrix]
     print('loading dataset')
@@ -121,20 +121,24 @@ def gen_parametric_bootstrap_cov(dataset: str, regn='ridge', param_choice = 'cv'
 #######################################
 # and utility functions exploiting this struct
 
-def pboot_setting(pboot_string: str, algo: str, n: int, folds: int, K: int):
+def pboot_mvn(pboot_string: str):
     dataset, regn, param_choice = pboot_string_to_params(pboot_string)
-    mvn = load_pboot_mvn(dataset, regn, param_choice)
-    return Setting(mvn, algo, n, folds, K)
+    return load_pboot_mvn(dataset, regn, param_choice)
+
+# def pboot_setting(pboot_string: str, algo: str, n: int, folds: int, K: int):
+#     mvn = pboot_mvn(pboot_string)
+#     return Setting(mvn, algo, n, folds, K)
 
 
-def synth_setting(cov_type: str, algo: str, p: int, q: int, n: int, folds: int, K: int):
-    mvn = synth_mvn(cov_type, p, q)
-    return Setting(mvn, algo, n, folds, K)
+# def synth_setting(cov_type: str, algo: str, p: int, q: int, n: int, folds: int, K: int):
+#     mvn = synth_mvn(cov_type, p, q)
+#     return Setting(mvn, algo, n, folds, K)
 
 
 class Setting():
     def __init__(s, mvn: MVNDist, algo: str, n: int, folds: int, K: int):
         s.mvn = mvn
+        s.p, s.q = mvn.p, mvn.q
         s.algo = algo
         s.n = n
         s.folds = folds
@@ -286,5 +290,5 @@ def synth_mvn(cov_desc: str, p: int, q: int):
     else:
         raise Exception(f'unrecognised cov_type {cov_desc}- perhaps not yet implemented?')
 
-    return MVNDist(Sig, p, path_stem = f'synth/{cov_desc}/p{p}q{q}')
+    return MVNDist(Sig, p, path_stem = f'synth/{cov_desc}/p{p}q{q}/')
 # to review: the syntax for this saving

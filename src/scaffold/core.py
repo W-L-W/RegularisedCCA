@@ -440,7 +440,7 @@ class MVNCV(CV):
         self.full_path.process_estimates()
 
     def load_df_oracle(self):
-        return self.full_path.df_oracle()
+        return self.full_path.load_df_oracle()
 
 
 
@@ -457,9 +457,11 @@ class MVNSolPath(SolutionPath):
         os.makedirs(folder_name,exist_ok=True)
         return folder_name
     
-    def _summary_filename(self, output_type = 'oracle'):
+    def _summary_filename(self, output_type = 'oracle full'):
         if output_type == 'oracle full':
             return self.summary_folder + f'K{self.K}_{self.algo}_oracle.csv'
+        else:
+            raise ValueError(f'output_type {output_type} not recognised')
 
     def _process_estimate(self,pen):
         # first compute all auxilliary quantities
@@ -503,7 +505,7 @@ class MVNSolPath(SolutionPath):
         assert len(self.pens_fitted) > 0, f'No penalties fitted yet for {str(self)}'
         single_rows = [self._process_estimate(pen) for pen in self.pens_fitted]
         df_oracle = pd.concat(single_rows)
-        file_name = self._summary_filename('oracle')
+        file_name = self._summary_filename('oracle full')
         df_oracle.to_csv(file_name,index=False)
         return df_oracle
 
@@ -512,14 +514,14 @@ class MVNSolPath(SolutionPath):
         self.process_estimates()
 
     def load_df_oracle(self):
-        file_name = self._summary_filename('oracle')
+        file_name = self._summary_filename('oracle full')
         return pd.read_csv(file_name).sort_values(by='pen')
 
 
 
 class MVNData(Data):
-    def __init__(self,X,Y,rs,mvn_dist,folder_name):
-        super().__init__(X,Y,folder_name)
+    def __init__(self,X,Y,rs,mvn_dist,rel_path):
+        super().__init__(X,Y,rel_path)
         self.rs = rs
         self.mvn = mvn_dist
         self._check_dims_consistent()
@@ -550,7 +552,7 @@ class MVNDist():
     def gen_data(self,rs,n):
         X,Y = utils.data_from_covariance(self.Sig,self.p,self.q,n,rs)
         folder_name = self._get_rel_path(rs,n)
-        return MVNData(X,Y,rs,mvn_dist=self,folder_name=folder_name)
+        return MVNData(X,Y,rs,mvn_dist=self,rel_path=folder_name)
 
     def _get_rel_path(self,rs,n):
         # previously noted useful for metric_plotter #TODO check used there and delete if not
