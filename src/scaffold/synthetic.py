@@ -5,7 +5,7 @@ import os
 from typing import Iterable
 
 from src.scaffold.wrappers import compute_everything
-from src.scaffold.core import MVNCV, MVNDist, MVNFactory
+from src.scaffold.core import MVNCV, MVNDist
 from src.utils import covs
 from src.utils import gram_schmidt
 from src.algos import first_K_ccs_lazy
@@ -127,10 +127,10 @@ def pboot_setting(pboot_string: str, algo: str, n: int, folds: int, K: int):
     return Setting(mvn, algo, n, folds, K)
 
 
-
 def synth_setting(cov_type: str, algo: str, p: int, q: int, n: int, folds: int, K: int):
-    pass
-# to implement once re-hashed the cov fac idea
+    mvn = synth_mvn(cov_type, p, q)
+    return Setting(mvn, algo, n, folds, K)
+
 
 class Setting():
     def __init__(s, mvn: MVNDist, algo: str, n: int, folds: int, K: int):

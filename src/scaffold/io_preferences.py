@@ -10,9 +10,6 @@ base_output_dir = dir_path_this_script+'/../../expmts/output'
 plot_dir = base_output_dir + '/plots/'
 
 
-def mvn_folder_name(path_stem: str, n: int, rs: int):
-    folder_name = base_output_dir + f'/{path_stem}/n{n}/rs{rs}/'
-    return folder_name
 
 def output_folder(rel_path: str, mode = 'detail') -> str:
     """Folder name for data objects, to determine where the estimates and summary statistics are saved
@@ -22,6 +19,10 @@ def output_folder(rel_path: str, mode = 'detail') -> str:
 def rel_path_real_data(dataset: str) -> str:
     """Relative path for real data objects"""
     return 'real/' + dataset + '/'
+
+def rel_path_mvn(path_stem: str, n: int, rs: int):
+    return f'{path_stem}/n{n}/rs{rs}/'
+
 
 
 # def output_folder_real_data(dataset: str, mode='detail') -> str:
