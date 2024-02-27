@@ -307,7 +307,8 @@ def side_by_side_misc_biplots(dataset,algo_pen_inds_tuples,ref_idx,vrt,         
         subplot_titles = tuple([get_str(tup) + ", s.c.s" for tup in tuples]
                             + [get_str(tup) + ", wt.s" for tup in tuples])
         fig = make_subplots(rows=2, cols=num_cols,shared_yaxes=True,
-                            subplot_titles=subplot_titles
+                            subplot_titles=subplot_titles,
+                            vertical_spacing=0.11,
                             )
         # Add in circles and diamonds at relevant thresholds
         circle = gen_circle()

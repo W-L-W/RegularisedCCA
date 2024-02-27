@@ -3,7 +3,7 @@ import os
 
 from src.algos import get_pens
 from src.scaffold.wrappers import get_cv_obj_from_data, compute_everything, get_dataset, get_cv_object
-from src.scaffold.io_preferences import save_mplib, save_plotly
+from src.scaffold.io_preferences import save_mplib, save_plotly, output_folder_real_data
 from src.plotting.comparison import (
     row_plot3, 
     stab_row_plot, 
@@ -15,8 +15,6 @@ from src.plotting.comparison import (
     sq_overlap_path,
 )
 from src.plotting.biplots import biplot_3D, side_by_side_misc_biplots, rescale_slider_comparison
-
-from real_data.loading import output_folder_real_data
 from real_data.styling import dset_abbrev, mb_2d_style_fns, mb_3d_style_fns, bd_3d_style_fns, kumar_style_fns
 # parameters for this script
 # to move to kwargs later so that can be run from command line
@@ -92,7 +90,7 @@ def biplot3D_microbiome_kumar():
                           eye=dict(x=1.3, y=1.3, z=1), 
                           center=dict(x=0, y=0, z=-0.2))
     )
-    save_plotly(fig, 'mb_biplot_3D_kumar_annotations.png')
+    save_plotly(fig, 'mb_biplot_3D_kumar_annotations')
 
 def biplot3D_microbiome_bonus():
     algos_ggl_first = ['gglasso', 'ridge', 'suo']
@@ -182,23 +180,25 @@ def biplot3D_breastdata_bonus():
 
 
 if __name__ == '__main__':
-    # first fit all the algorithms
-    for algo in algos:
-        print(f'Fitting {algo}')
-        cv_obj = get_cv_obj_from_data(data,algo)
-        pens = get_pens(algo, data.n, mode='run')
-        print(pens)
-        compute_everything(cv_obj,pens)
+    recompute = False
+    if recompute:
+        #first fit all the algorithms
+        for algo in algos:
+            print(f'Fitting {algo}')
+            cv_obj = get_cv_obj_from_data(data,algo)
+            pens = get_pens(algo, data.n, mode='run')
+            print(pens)
+            compute_everything(cv_obj,pens)
 
     pen_trios = get_pen_trios(algos, data)
     print('loaded pen trios', pen_trios)
 
-    # initial correlation and stability along trajectories
-    fig, _, _ = row_plot3(data, algos, lambda x: x**2,[0,2,4],y_label='r2sk-cv')
-    save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr')
-    criteria = ['wt_U', 'vt_U']
-    fig, _ = stab_row_plot(data, algos, criteria, [1,3,5])
-    save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
+    # # initial correlation and stability along trajectories
+    # fig, _, _ = row_plot3(data, algos, lambda x: x**2,[0,2,4],y_label='r2sk-cv')
+    # save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr')
+    # criteria = ['wt_U', 'vt_U']
+    # fig, _ = stab_row_plot(data, algos, criteria, [1,3,5])
+    # save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
 
     # correlation decay
     best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
@@ -219,22 +219,25 @@ if __name__ == '__main__':
     save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens')
 
     if dataset == 'microbiome':
-        # bonus plots for microbiome appendix
-        algo = 'gglasso'; folds=[0,1,2]; pens = pen_trios[algo]
-        fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
-        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
+        # # bonus plots for microbiome appendix
+        # algo = 'gglasso'; folds=[0,1,2]; pens = pen_trios[algo]
+        # fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
+        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
 
-        best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
-        fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1, reg='orthog')
-        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
+        # best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+        # fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1, reg='orthog')
+        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
 
-        suo_pens = pen_trios['suo']
-        fig, _ = sq_overlap_path(dataset, 'suo',suo_pens,ref_pen=suo_pens[1],reg='signs')
-        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
+        # suo_pens = pen_trios['suo']
+        # fig, _ = sq_overlap_path(dataset, 'suo',suo_pens,ref_pen=suo_pens[1],reg='signs')
+        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
 
-        biplot3D_microbiome_bonus()
+        # biplot3D_microbiome_bonus()
 
-    if dataset == 'breastdata':
+        # biplot3D_microbiome_kumar()
+        biplot2D_microbiome_bonus()
+
+    elif dataset == 'breastdata':
         biplot3D_breastdata_bonus()
 
 
