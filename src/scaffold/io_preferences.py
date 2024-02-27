@@ -12,13 +12,18 @@ plot_dir = base_output_dir + '/plots/'
 
 
 def output_folder(rel_path: str, mode = 'detail') -> str:
-    """Folder name for data objects, to determine where the estimates and summary statistics are saved
+    """Folder name for data objects
     mode = {'detail', 'processed'}"""
     return base_output_dir + (mode + '/') + rel_path
 
 def rel_path_real_data(dataset: str) -> str:
     """Relative path for real data objects"""
     return 'real/' + dataset + '/'
+
+def output_folder_real_data(dataset: str, mode = 'detail') -> str:
+    """Folder name for real data objects
+    mode = {'detail', 'processed'}"""
+    return output_folder(rel_path_real_data(dataset), mode)
 
 def rel_path_mvn(path_stem: str, n: int, rs: int):
     return path_stem + f'n{n}/rs{rs}/'

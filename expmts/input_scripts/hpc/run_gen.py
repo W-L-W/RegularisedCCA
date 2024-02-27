@@ -2,6 +2,11 @@
 # rs: random seed, integer
 # exp_idx: index of the experiment in the param_df.csv file
 
+# Note I have the subm script on the hpc cluster only
+# To run this script, navigate to it's directory and then run:
+# `sbatch subm $exp_idx` 
+# where $exp_idx is integer experiment index, as in this file
+
 import argparse
 
 from src.scaffold.synthetic import one_seed_fit
