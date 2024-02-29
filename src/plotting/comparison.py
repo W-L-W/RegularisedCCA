@@ -83,7 +83,6 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
         df_true_sum_f = df_true.apply(nice_fn).cumsum(axis=1)
         df_true_sum_f.columns = df.columns
 
-
     # finally plot, using sensible colour scheme
     cols_to_plot = df.columns[inds]
     cm = plt.get_cmap('winter')

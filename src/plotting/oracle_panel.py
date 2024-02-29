@@ -61,5 +61,4 @@ def panel_plot(data,Kmax=5):
         axs[0,idx].set_title(algo_labels[algo], fontsize=title_size)
 
     _ = [ax.grid(True, which='major', axis='both') for ax in axs.flatten()]   
-    print(solp.data.folder)
     return fig
