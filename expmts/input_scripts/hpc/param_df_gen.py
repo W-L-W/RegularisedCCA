@@ -22,8 +22,11 @@ covs_synth = [k for k in K_dict.keys() if k not in covs_pboot]
 algos = ['ridge','wit','suo','gglasso']
 cols = ['cov_type','algo','dims','ns']#,'K','folds']
 
-df_mini_test = (pd.DataFrame(product(['suo_sp_rand'],['wit', 'ridge']), columns = ['cov_type', 'algo'])
+df_synth_test = (pd.DataFrame(product(['suo_sp_rand'],['wit', 'ridge']), columns = ['cov_type', 'algo'])
                 .pipe(assign_csts, ['dims', 'ns'], [{'p':10, 'q':10},[10, 20, 30]])
+)
+df_pboot_test = (pd.DataFrame(product(['pboot_nm_ggl_cvm3'],['wit', 'ridge']), columns = ['cov_type', 'algo'])
+                .pipe(assign_csts, ['dims', 'ns'], ['pboot', [10, 20, 30]])
 )
 
 df_synth = (pd.DataFrame(product(covs_synth,algos), columns = ['cov_type', 'algo'])
@@ -32,7 +35,7 @@ df_synth = (pd.DataFrame(product(covs_synth,algos), columns = ['cov_type', 'algo
 df_pboot = (pd.DataFrame(product(covs_pboot,algos), columns = ['cov_type', 'algo'])
             .pipe(assign_csts, ['dims', 'ns'], ['pboot', [20,40,60,100,150,200,300,500,1000]])
 )
-df_comb = pd.concat([df_mini_test, df_synth, df_pboot]).reset_index().drop('index',axis=1)
+df_comb = pd.concat([df_synth_test, df_pboot_test, df_synth, df_pboot]).reset_index().drop('index',axis=1)
 df_comb['K'] = df_comb['cov_type'].apply(lambda cov: K_dict[cov])
 df_comb['folds'] = 5
 

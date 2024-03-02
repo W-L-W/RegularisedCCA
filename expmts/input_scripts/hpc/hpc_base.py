@@ -21,11 +21,12 @@ def is_pboot(cov_type: str):
 
 def create_mvn(row):
     cov_type = row['cov_type']
-    dims = eval(row['dims'])
+    dims = row['dims']
     if is_pboot(cov_type):
         assert dims == 'pboot', 'pboot should have dims = "pboot"'
         mvn = pboot_mvn(cov_type)
     else:
+        dims = eval(dims) # dims is a string representation of a dictionary
         p, q = dims['p'], dims['q']
         mvn = synth_mvn(cov_type, p, q)
     return mvn
@@ -37,6 +38,7 @@ def setting_creator(row):
     folds = row['folds']
     return lambda n: Setting(mvn, algo, n, folds, K)
 
-def pen_creator(row):
+def pen_creator(row, mode='run'):
+    """mode: 'run' or 'debug' as per get_pens() in src/algos.py"""
     algo = row['algo']
-    return lambda n: get_pens(algo,n)
+    return lambda n: get_pens(algo,n, mode=mode)
