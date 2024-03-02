@@ -41,7 +41,7 @@ def pboot_params_to_string(dataset:str, regn:str, param_choice:str):
     return f'pboot_{dset_abbrev[dataset]}_{reg_abbrev[regn]}_{param_choice}'
 
 def pboot_string_to_params(pboot_string:str):
-    _, dset, regn, param_choice = pboot_string_to_params(pboot_string)
+    _, dset, regn, param_choice = pboot_string.split('_')
     return dset_abbrev_inv[dset], reg_abbrev_inv[regn], param_choice
 
 
