@@ -271,7 +271,8 @@ class CV():
                     cor_mat = utils.emp_cor_mat(Ue,Ve,X_test,Y_test)
                     cov_mat = utils.emp_cov_mat(Ue,Ve,X_test,Y_test)
                     diags = np.diag(cor_mat)
-                    subsp = utils.can_corr_subs(cov_mat,r)
+                    subsp = utils.can_corr_subs(cov_mat,r,agg='sq') 
+                    # WARNING: this function only uses square aggregation, which may not be intuitive
                     return np.block([diags,subsp])
 
                 Ue,Ve,te = train_solp.load_est_n_t(pen)

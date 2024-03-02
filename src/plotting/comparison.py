@@ -21,16 +21,16 @@ title_pad = 10
 # Would be nice to refactor to reduce this repetition (when time permits, TODO)
 
 # Correlation - successive
-def row_plot3(data,algos,nice_fn,inds,folder_title=False, legend_prefix='', y_label=''): #MVN=False):
+def row_plot(data,algos,nice_fn,inds,folder_title=False, legend_prefix='', y_label=''): #MVN=False):
     """Plot cv sums of nice_fn of test correlations for each algo in algos"""
     fig,axs = plt.subplots(ncols=len(algos),nrows=1,figsize=(4*len(algos)+4,5),sharey=True)
     df_dict = dict()
     for idx,algo in enumerate(algos):
-        cv_obj = get_cv_obj_from_data(data,algo) #,MVN=MVN)
+        cv_obj = get_cv_obj_from_data(data,algo)
         ax,df = corr_plotter(cv_obj,nice_fn,inds,axs[idx], legend_prefix=legend_prefix)
         df_dict[algo] = df
     if folder_title: fig.suptitle(data.rel_path)
-    # give first column the y-axis label
+    # only first column gets the y-axis label
     axs[0].set_ylabel(y_label, fontsize=label_size, labelpad=label_padding)
     return fig, axs, df_dict
 
@@ -52,7 +52,8 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
     cv_object: CV object
     
     nice_fn: scalar function
-        This should be 'nice', in particular convex and such that f(x)>f(-x) for all x>0 (see overleaf)
+        This should be 'nice', in particular convex and such that f(x)>f(-x) for all x>0 
+        (see our paper, under "Valid aggregation functions")
     
     inds: list of ints
         indices up to which to aggregate
@@ -97,15 +98,19 @@ def plot_cv(cv_object,nice_fn,inds,ax,logx=False,legend_prefix='sum_f_',):
     return ax,df_sum_f_av
 
 # Correlation - successive
-def subsp_row_plot(data,algos,inds,folder_title=False): #MVN=False):
-    """Plot cv sums of nice_fn of tesst correlations for each algo in algos"""
+# Note unlike the other row plot functions this does not check for MVNData
+# This can be implemented as a feature in a future version if desired
+def subsp_R2_row_plot(data,algos,inds,y_label='R2sk-cv', rel_path_title=False):
+    """Plot cv (sums of SQUARED subsp corrns) for each algo in algos
+    (Note this is less general than for successive correlation row plot, due to implementation of cv subsp corrns in core.py)"""
     fig,axs = plt.subplots(ncols=len(algos),nrows=1,figsize=(4*len(algos)+4,5),sharey=True)
     df_dict = dict()
     for idx,algo in enumerate(algos):
-        cv_obj = get_cv_obj_from_data(data,algo) #,MVN=MVN)
+        cv_obj = get_cv_obj_from_data(data,algo)
         ax,df = subsp_corr_plotter(cv_obj,inds,axs[idx])
         df_dict[algo] = df
-    if folder_title: fig.suptitle(data.rel_path)
+    if rel_path_title: fig.suptitle(data.rel_path)
+    axs[0].set_ylabel(y_label, fontsize=label_size, labelpad=label_padding)
     return fig, df_dict
 
 def subsp_corr_plotter(cv_obj,inds,ax):
@@ -127,10 +132,10 @@ def plot_cv_subspace(cv_object,inds,ax,logx=False):
     #  plot, using sensible colour scheme
     cm = plt.get_cmap('winter')
     for idx,col in enumerate(sub_corrs):
+        label = str(inds[idx])
         frac = idx/(len(inds)) if len(inds)>1 else 0
         color = cm(frac)
-        dfav[col].plot(ax=ax,y='mean',yerr='std',logx=logx,label=col,color=color)
-
+        dfav[col].plot(ax=ax,y='mean',yerr='std',logx=logx,label=label,color=color)
     return ax,dfav
 
 
