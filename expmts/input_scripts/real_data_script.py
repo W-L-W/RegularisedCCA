@@ -1,12 +1,14 @@
 import numpy as np
 import os
+from typing import Union, Iterable
 
 from src.algos import get_pens
 from src.scaffold.wrappers import get_cv_obj_from_data, compute_everything, get_dataset, get_cv_object
 from src.scaffold.io_preferences import save_mplib, save_plotly, output_folder_real_data
 from src.plotting.comparison import (
-    row_plot3, 
-    stab_row_plot, 
+    row_plot, 
+    stab_row_plot,
+    subsp_R2_row_plot, 
     corr_decay_misc, 
     traj_stab_array, 
     pretty_arr_plot,
@@ -36,11 +38,11 @@ data = get_dataset(dataset)
 
 
 # then process the output and make the plots
-def get_pen_trios(algos, data, recompute=False):
+def get_pen_trios(data, algos: Iterable[str], always_recompute=False, recompute_if_req=True):
     file_name = output_folder_real_data(dataset, mode='processed') + 'pen_trios.npz'
     print(file_name)
     # if file doesn't exist compute pen trio
-    if not os.path.exists(file_name) or recompute:
+    if not os.path.exists(file_name) or always_recompute:
         def get_trio(scale): return float(scale)**np.array([-1,0,1])
         def get_best_pen(algo): return get_cv_obj_from_data(data,algo).get_best_pen('r2s5')
         pen_trios = {}
@@ -52,7 +54,13 @@ def get_pen_trios(algos, data, recompute=False):
         np.savez(file_name, **pen_trios)
     else:
         pen_trios = np.load(file_name)
-        return pen_trios
+        # check that each algo string is a key of the loaded object
+        if all([algo in pen_trios for algo in algos]):
+            return pen_trios
+        elif recompute_if_req:
+            return get_pen_trios(data, algos, always_recompute=True)
+        else:
+            raise ValueError('Loaded pen_trios does not contain all required algorithms')
 
 def biplot2D_microbiome_bonus():
     algos = ['suo', 'gglasso', 'ridge'] # good to have gglasso in middle
@@ -190,55 +198,62 @@ if __name__ == '__main__':
             print(pens)
             compute_everything(cv_obj,pens)
 
-    pen_trios = get_pen_trios(algos, data)
+    pen_trios = get_pen_trios(data, algos)
     print('loaded pen trios', pen_trios)
+    print([(algo, pen_trios[algo]) for algo in algos])
 
-    # # initial correlation and stability along trajectories
-    # fig, _, _ = row_plot3(data, algos, lambda x: x**2,[0,2,4],y_label='r2sk-cv')
-    # save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr')
-    # criteria = ['wt_U', 'vt_U']
-    # fig, _ = stab_row_plot(data, algos, criteria, [1,3,5])
-    # save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
+    # if dataset == 'breastdata':
+    #     fig, _ = subsp_R2_row_plot(data,algos,[1,3,5])
+    #     save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr_subsp')
 
-    # correlation decay
-    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
-    fig = corr_decay_misc(dataset, best_pairs)
-    save_mplib(fig, f'{dset_abbrev[dataset]}_corr_decay_best_pens')
 
-    # trajectory comparison matrices
-    algo_penlist_pairs = [(algo,pen_trios[algo]) for algo in algos_tc]
-    arr_wt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='weight')
-    arr_vt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='variate')
-    fig_wt, _ = pretty_arr_plot(arr_wt[:,:,2], algo_penlist_pairs)
-    fig_vt, _ = pretty_arr_plot(arr_vt[:,:,2], algo_penlist_pairs)
-    save_mplib(fig_wt, f'{dset_abbrev[dataset]}_traj_comp_wt')
-    save_mplib(fig_vt, f'{dset_abbrev[dataset]}_traj_comp_vt')
+    if recompute:
+        # # initial correlation and stability along trajectories
+        fig, _, _ = row_plot(data, algos, lambda x: x**2,[0,2,4],y_label='r2sk-cv')
+        save_mplib(fig, f'{dset_abbrev[dataset]}_traj_corr')
+        criteria = ['wt_U', 'vt_U']
+        fig, _ = stab_row_plot(data, algos, criteria, [1,3,5])
+        save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
 
-    # overlap matrices
-    fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1)
-    save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens')
+        # correlation decay
+        best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+        fig = corr_decay_misc(dataset, best_pairs)
+        save_mplib(fig, f'{dset_abbrev[dataset]}_corr_decay_best_pens')
 
-    if dataset == 'microbiome':
-        # # bonus plots for microbiome appendix
-        # algo = 'gglasso'; folds=[0,1,2]; pens = pen_trios[algo]
-        # fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
-        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
+        # trajectory comparison matrices
+        algo_penlist_pairs = [(algo,pen_trios[algo]) for algo in algos_tc]
+        arr_wt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='weight')
+        arr_vt = traj_stab_array(dataset,algo_penlist_pairs,inds=[0,1,2],space='variate')
+        fig_wt, _ = pretty_arr_plot(arr_wt[:,:,2], algo_penlist_pairs)
+        fig_vt, _ = pretty_arr_plot(arr_vt[:,:,2], algo_penlist_pairs)
+        save_mplib(fig_wt, f'{dset_abbrev[dataset]}_traj_comp_wt')
+        save_mplib(fig_vt, f'{dset_abbrev[dataset]}_traj_comp_vt')
 
-        # best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
-        # fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1, reg='orthog')
-        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
+        # overlap matrices
+        fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1)
+        save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens')
 
-        # suo_pens = pen_trios['suo']
-        # fig, _ = sq_overlap_path(dataset, 'suo',suo_pens,ref_pen=suo_pens[1],reg='signs')
-        # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
+        if dataset == 'microbiome':
+            # # bonus plots for microbiome appendix
+            # algo = 'gglasso'; folds=[0,1,2]; pens = pen_trios[algo]
+            # fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
+            # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
 
-        # biplot3D_microbiome_bonus()
+            # best_pairs = [(algo, pen_trios[algo][1]) for algo in algos]
+            # fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=1, reg='orthog')
+            # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
 
-        # biplot3D_microbiome_kumar()
-        biplot2D_microbiome_bonus()
+            # suo_pens = pen_trios['suo']
+            # fig, _ = sq_overlap_path(dataset, 'suo',suo_pens,ref_pen=suo_pens[1],reg='signs')
+            # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_suo_path')
 
-    elif dataset == 'breastdata':
-        biplot3D_breastdata_bonus()
+            # biplot3D_microbiome_bonus()
+
+            # biplot3D_microbiome_kumar()
+            biplot2D_microbiome_bonus()
+
+        elif dataset == 'breastdata':
+            biplot3D_breastdata_bonus()
 
 
 

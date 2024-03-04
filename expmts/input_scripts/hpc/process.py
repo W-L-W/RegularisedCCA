@@ -9,7 +9,7 @@ from hpc_base import get_row, create_mvn
 
 import matplotlib.pyplot as plt
 
-exp_idx = 0
+exp_idx = 2
 recompute = False
 
 
@@ -23,7 +23,7 @@ K = row['K']
 # may want to use a subset of ns
 ns = [10, 20, 30]
 # make so can read from file system what has been computed already, or have an assertion that it has been computed
-rss = [0,1,2]
+rss = range(32)
 
 algos = ['ridge', 'wit']
 colours = ['grey', 'red']
