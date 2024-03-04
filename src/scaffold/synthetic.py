@@ -51,8 +51,7 @@ def save_pboot_cov(dataset:str, regn:str, param_choice:str):
     filename = pboot_filename(dataset, f'{regn}_{param_choice}_cov.npz')
     # make directory if it doesn't exist already
     directory = os.path.dirname(filename)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    os.makedirs(directory, exist_ok=True) # previously only called makedirs if not os.path.exists(directory), but this threw error on hpc
     np.savez(filename, p=p, Sig=Sig)
 
 def load_pboot_mvn(dataset:str, regn:str, param_choice:str):
