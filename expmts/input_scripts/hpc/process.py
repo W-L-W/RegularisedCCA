@@ -23,7 +23,7 @@ K = row['K']
 # may want to use a subset of ns
 ns = [10, 20, 30]
 # make so can read from file system what has been computed already, or have an assertion that it has been computed
-rss = range(32)
+rss = range(4,32)
 
 algos = ['ridge', 'wit']
 colours = ['grey', 'red']
