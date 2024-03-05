@@ -39,7 +39,7 @@ mvn = load_pboot_mvn(dataset, regn, param_choice)
 data = mvn.gen_data(rs,n)
 print(data.folder_detail)
 
-recompute = True
+recompute = False
 if recompute:
     for algo in algos:
         cv_obj = get_cv_obj_from_data(data,algo)
@@ -53,5 +53,5 @@ if recompute:
 fig, _, _ = row_plot(data, algos, lambda x: x**2, [0,2,4], y_label='r2sk(-cv)')
 save_mplib(fig, f'pboot_traj_corr_{abbrev[dataset]}_{abbrev[regn]}_{param_choice}')
 
-fig, _ = stab_row_plot(data, algos, ['vt_U', 'wt_U'], [1,3,5],)
+fig, _ = stab_row_plot(data, algos, ['wt_U','vt_U',], [1,3,5],)
 save_mplib(fig, f'pboot_traj_stab_{abbrev[dataset]}_{abbrev[regn]}_{param_choice}')
