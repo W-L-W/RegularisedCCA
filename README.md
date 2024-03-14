@@ -1,6 +1,6 @@
 # RegularisedCCA
 
-This repository contains the code for the illustrations in the preprint "...", which can be found [here](link-to-follow).
+This repository contains the code for the illustrations in the preprint "Regularised Canonical Correlation Analysis: graphical lasso, biplots and beyond", which can be found [on the arXiv, 2403.02979](https://arxiv.org/abs/2403.02979).
 
 We provide the run scripts for obtaining the numerical results and plots in the paper in `expmts/input_scripts` (see [Running Experiments](#running-experiments)); this uses python code in the `src` that has been packaged as a python package (see [Package Structure](#package-structure)).
 
