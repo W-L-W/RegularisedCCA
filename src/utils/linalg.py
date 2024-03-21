@@ -23,7 +23,7 @@ def _masked_power(vec: Vector, power: float, atol: float = 10**-6, rgln: float =
 
 def enforce_genuinely_non_negative(vec: Vector, atol: float =10**-6, msg: str = ''):
     """Check that any negative entries of vector have magnitude less than atol and replace these with zeros"""
-    assert np.isclose(vec[vec < 0], 0).all(), msg
+    assert np.isclose(vec[vec < 0], 0, atol=atol).all(), msg
     vec2 = vec.copy()
     vec2[vec < 0] = 0
     return vec2

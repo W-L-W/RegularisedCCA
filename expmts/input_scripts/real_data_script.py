@@ -21,8 +21,7 @@ from real_data.styling import dset_abbrev, mb_2d_style_fns, mb_3d_style_fns, bd_
 # parameters for this script
 # to move to kwargs later so that can be run from command line
 
-dataset = 'nutrimouse'
-
+dataset = 'microbiome'
 
 # wit, i.e. sPLS, is not a genuine CCA algorithm, and gglasso scales too poorly to fit on the full breastdata set
 algos_all = ['wit','suo','gglasso','ridge']
@@ -32,13 +31,16 @@ algos_CCA_bd = ['suo','ridge']
 
 algos_to_fit = {'nutrimouse': algos_all, 'microbiome': algos_all, 'breastdata': algos_bd}
 algos_ft = algos_to_fit[dataset]    
-# want to register to gCCA for microbiome and nutrimouse, but to sCCA for breastdata (see ordering in algos_ft)
-ref_idx_overlap = 1 if dataset == 'breastdata' else 2
 
-algos_corr_decay = {'nutrimouse': algos_CCA, 'microbiome': algos_CCA, 'breastdata': algos_bd}
-algos_cd = algos_corr_decay[dataset]
-algos_to_traj_comp = {'nutrimouse': algos_CCA, 'microbiome': algos_CCA, 'breastdata': algos_bd}
-algos_tc = algos_to_traj_comp[dataset]
+# using the three algorithms from dict below is most suitable for corr decay and traj comp plots
+# sPLS is distracting for nutrimouse and microbiome but provides interesting context for breastdata
+algos_three = {'nutrimouse': algos_CCA, 'microbiome': algos_CCA, 'breastdata': algos_bd}
+algos_3 = algos_three[dataset]
+
+algos_overlap = algos_3 if dataset == 'microbiome' else algos_ft
+# want to register to gCCA for microbiome and nutrimouse, but to sCCA for breastdata (see ordering in algos_ft)
+ref_idx_overlap = {'nutrimouse': 2, 'microbiome': 1, 'breastdata': 1}[dataset]
+
 
 data = get_dataset(dataset)
 
@@ -217,9 +219,9 @@ if __name__ == '__main__':
     # save_mplib(fig, f'{dset_abbrev[dataset]}_traj_stab')
 
     # correlation decay
-    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_cd]
-    fig = corr_decay_misc(dataset, best_pairs)
-    save_mplib(fig, f'{dset_abbrev[dataset]}_corr_decay_best_pens')
+    # best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_3]
+    # fig = corr_decay_misc(dataset, best_pairs)
+    # save_mplib(fig, f'{dset_abbrev[dataset]}_corr_decay_best_pens')
     
     # trajectory comparison matrices
     # algo_penlist_pairs = [(algo,pen_trios[algo]) for algo in algos_tc]
@@ -231,7 +233,7 @@ if __name__ == '__main__':
     # save_mplib(fig_vt, f'{dset_abbrev[dataset]}_traj_comp_vt')
 
     # overlap matrices
-    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_ft]
+    best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_overlap]
     fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=ref_idx_overlap)
     save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens')
 
@@ -242,8 +244,9 @@ if __name__ == '__main__':
         # fig, _ = sq_overlap_folds(dataset,algo,folds,ref_pen=pens[1],inds=range(5))
         # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_gglasso_folds')
 
+        # # also include sPLS for the bonus overlap plots in the appendix
         # best_pairs = [(algo, pen_trios[algo][1]) for algo in algos_ft]
-        # fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=ref_idx_overlap, reg='orthog')
+        # fig, _ = sq_overlap_misc(dataset, best_pairs, ref_pair_idx=2, reg='orthog')
         # save_mplib(fig, f'{dset_abbrev[dataset]}_sq_overlap_best_pens_orthog')
 
         # suo_pens = pen_trios['suo']
