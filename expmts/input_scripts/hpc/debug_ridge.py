@@ -3,7 +3,7 @@ from expmts.input_scripts.hpc.hpc_base import get_row, setting_creator, pen_crea
 
 # manually for debugging
 rs = 10
-exp_idx = 16
+exp_idx = 12
 
 n=20
 
