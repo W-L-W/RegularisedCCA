@@ -37,7 +37,7 @@ algo_descr = 'all_algos'
 # colours = ['grey', 'red']
 #['ridge','wit','suo','gglasso'],['grey','red','orange','green']
 
-fig_file_name = f'vary_n_{row['cov_type']}_{n_descr}_{algo_descr}'
+fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}"
 
 
 pen_objs = PenObjs({'wt_u1':'min',
