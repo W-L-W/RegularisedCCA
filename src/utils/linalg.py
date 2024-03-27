@@ -24,12 +24,16 @@ def _masked_power(vec: Vector, power: float, atol: float = 10**-6, rgln: float =
 def enforce_genuinely_non_negative(vec: Vector, atol: float =10**-6, msg: str = '', err_handling='assert'):
     """Check that any negative entries of vector have magnitude less than atol and replace these with zeros"""
     no_error = np.isclose(vec[vec < 0], 0, atol=atol).all()
-    if err_handling=='assert':
-        assert no_error, msg
-    else:
-        print(msg, '\nOriginal vector:', vec, '\nModified vector:', vec2)
     vec2 = vec.copy()
     vec2[vec < 0] = 0
+
+    if err_handling == 'assert':
+        assert no_error, msg
+    elif err_handling == 'print':
+        if not no_error:
+            print('Non-neg vec error: ', msg, '\nOriginal vector:', vec, '\nModified vector:', vec2)
+    else:
+        raise ValueError('err_handling must be one of "assert" or "print"')    
     return vec2
 
 def mhalf(vec: Vector, err_handling = 'assert'):
