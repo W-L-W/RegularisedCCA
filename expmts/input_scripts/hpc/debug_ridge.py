@@ -10,7 +10,7 @@ n=20
 # Everything else
 row = get_row(exp_idx)
 create_setting = setting_creator(row)
-create_pens = pen_creator(row, mode='run') # 'debug' to fit smaller number of penalty parameters
+create_pens = pen_creator(row, mode='debug') # 'debug' to fit smaller number of penalty parameters
 
 pens = create_pens(n)
 setting = create_setting(n)

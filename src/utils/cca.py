@@ -13,7 +13,10 @@ def cca_from_cov_mat(Sig, p, zero_cut_off: Union[float, None] = None):
 
     Sigxx, Sigxy, Sigyx, Sigyy = Sig[:p, :p], Sig[:p, p:], Sig[p:, :p], Sig[p:, p:]
 
-    nSigxx, nSigyy = nsqrtm(Sigxx), nsqrtm(Sigyy)
+    # at one point received linalg errors when had non-positive definite block matrices
+    # this was only in pathological regime of n=20 and ridge estimator; here we replace assertions with print statements
+    # to help HPC debugging process
+    nSigxx, nSigyy = nsqrtm(Sigxx, err_handling='print'), nsqrtm(Sigyy, err_handling='print')
     # Target_M = np.linalg.inv(sqrtm(Sigxx))@Sigxy@np.linalg.inv(sqrtm(Sigyy))
     Target_M = nSigxx @ Sigxy @ nSigyy
 
