@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import os
+import ast
+
 from expmts.input_scripts.hpc.hpc_base import is_pboot
 
 from src.scaffold.io_preferences import output_folder, save_mplib
@@ -21,8 +23,8 @@ folds = row['folds']
 K = row['K']
 
 # may want to use a subset of ns
-ns = [20,40,60]
-n_descr = 'few_n'
+ns = ast.literal_eval(row['ns']) #i20,40,60]
+n_descr = 'full_n'
 # make so can read from file system what has been computed already, or have an assertion that it has been computed
 rss = range(0,32)
 
@@ -32,7 +34,7 @@ algo_color_dict = {
     'suo':'orange',
     'gglasso':'green'
 }
-algo_descr = 'all_algos'
+algo_descr = 'all_algos' # 'successful_algos'
 # algos = ['ridge', 'wit']
 # colours = ['grey', 'red']
 #['ridge','wit','suo','gglasso'],['grey','red','orange','green']
