@@ -74,6 +74,7 @@ def load_best_rows(algos):
 
 def make_plot(algo_color_dict):
     rows = load_best_rows(algo_color_dict.keys())
+    print(rows.keys())
     
     fig,axs = plt.subplots(ncols=3,figsize=(12,6))
 
