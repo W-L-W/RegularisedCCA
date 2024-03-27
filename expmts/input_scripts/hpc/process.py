@@ -9,7 +9,7 @@ from hpc_base import get_row, create_mvn
 
 import matplotlib.pyplot as plt
 
-exp_idx = 2
+exp_idx = 12  #12 is pboot_nm_ggl_cvm3, ridge, many n
 recompute = False
 
 
@@ -21,13 +21,24 @@ folds = row['folds']
 K = row['K']
 
 # may want to use a subset of ns
-ns = [10, 20, 30]
+ns = [20,40,60]
+n_descr = 'few_n'
 # make so can read from file system what has been computed already, or have an assertion that it has been computed
-rss = range(4,32)
+rss = range(0,32)
 
-algos = ['ridge', 'wit']
-colours = ['grey', 'red']
+algo_color_dict = {
+    'ridge':'grey',
+    'wit':'red',
+    'suo':'orange',
+    'gglasso':'green'
+}
+algo_descr = 'all_algos'
+# algos = ['ridge', 'wit']
+# colours = ['grey', 'red']
 #['ridge','wit','suo','gglasso'],['grey','red','orange','green']
+
+fig_file_name = f'vary_n_{row['cov_type']}_{n_descr}_{algo_descr}'
+
 
 pen_objs = PenObjs({'wt_u1':'min',
                     'vt_u1':'min',
@@ -41,7 +52,7 @@ def processed_df(algos):
         rows[algo] = vary_n_best_rows(algo,mvn,folds,K,ns,rss,pen_objs)
     return rows
 
-def load_best_rows():
+def load_best_rows(algos):
     import pickle
 
     path_stem = mvn.path_stem
@@ -61,15 +72,15 @@ def load_best_rows():
     return rows
 
 
-def make_plot():
-    rows = load_best_rows()
+def make_plot(algo_color_dict):
+    rows = load_best_rows(algo_color_dict.keys())
     
     fig,axs = plt.subplots(ncols=3,figsize=(12,6))
 
     for idx,met in enumerate(['wt_u1','vt_u1','rho1']):
         ax=axs[idx]
         ax.set_title(met)
-        for algo,color in zip(algos, colours):
+        for algo,color in algo_color_dict.items():
             df_met = select_values(rows[algo],met)
             for objv,ls in zip(['rho1','rho1_cv'],[':','-']):
                 label = algo + '+' + objv
@@ -81,5 +92,5 @@ def make_plot():
     return fig, axs
 
 if __name__ == "__main__":
-    fig, axs = make_plot()
-    save_mplib(fig,'vary_n_1cc_suo_sp_rand')
+    fig, axs = make_plot(algo_color_dict)
+    save_mplib(fig,fig_file_name)
