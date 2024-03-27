@@ -57,7 +57,7 @@ def load_best_rows(algos):
 
     path_stem = mvn.path_stem
     folder = output_folder(path_stem,mode='processed')
-    file_name = folder + 'best_rows.pkl'
+    file_name = folder + fig_file_name + '_best_rows.pkl'
 
     if not os.path.exists(file_name) or recompute:
         rows = processed_df(algos) # the only heavyish computation step! # ,'suo','gglasso' add in if appropriate
