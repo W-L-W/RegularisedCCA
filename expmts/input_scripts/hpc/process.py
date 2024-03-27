@@ -11,7 +11,7 @@ from hpc_base import get_row, create_mvn
 
 import matplotlib.pyplot as plt
 
-exp_idx = 12  #12 is pboot_nm_ggl_cvm3, ridge, many n
+exp_idx = 12 #12 is pboot_nm_ggl_cvm3, ridge, many n
 recompute = False
 
 
@@ -35,18 +35,27 @@ algo_color_dict = {
     'gglasso':'green'
 }
 algo_descr = 'all_algos' # 'successful_algos'
-# algos = ['ridge', 'wit']
-# colours = ['grey', 'red']
-#['ridge','wit','suo','gglasso'],['grey','red','orange','green']
-
-fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}"
 
 
 pen_objs = PenObjs({'wt_u1':'min',
                     'vt_u1':'min',
+                    'wt_U3':'min',
+                    'vt_U3':'min',
                     'rho1':'max',
-                    'rho1_cv':'max'}
+                    'rho1_cv':'max',
+                    'R2s3':'max',
+                    'R2s3_cv':'max',
+                    }
 )
+mets_to_plot = ['wt_U3','vt_U3','R2s3']
+mets_for_pen_selection = {
+    'R2s3': ':',
+    'R2s3_cv': '-'
+}
+metr_descr = '3_cc_bundle'
+
+fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}"
+
 
 def processed_df(algos):
     rows = dict()
@@ -66,9 +75,7 @@ def load_best_rows(algos):
         os.makedirs(os.path.dirname(file_name), exist_ok=True)
         with open(file_name, 'wb') as f:
             pickle.dump(rows, f)
-        #rows.to_csv(file_name)
     else:
-        #rows = pd.read_csv(file_name,index_col=0)
         with open(file_name, 'rb') as f:
             rows = pickle.load(f)
     return rows
@@ -80,12 +87,12 @@ def make_plot(algo_color_dict):
     
     fig,axs = plt.subplots(ncols=3,figsize=(12,6))
 
-    for idx,met in enumerate(['wt_u1','vt_u1','rho1']):
+    for idx,met in enumerate(mets_to_plot):
         ax=axs[idx]
         ax.set_title(met)
         for algo,color in algo_color_dict.items():
             df_met = select_values(rows[algo],met)
-            for objv,ls in zip(['rho1','rho1_cv'],[':','-']):
+            for objv,ls in mets_for_pen_selection.items():
                 label = algo + '+' + objv
                 (df_met.xs(objv,axis=1,level=1)
                 .plot(y='mean',label=label,ax=ax,ls=ls,color=color,
