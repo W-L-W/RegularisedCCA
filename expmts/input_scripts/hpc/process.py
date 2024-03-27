@@ -11,7 +11,7 @@ from hpc_base import get_row, create_mvn
 
 import matplotlib.pyplot as plt
 
-exp_idx = 12 #12 is pboot_nm_ggl_cvm3, ridge, many n
+exp_idx = 0 #12 #12 is pboot_nm_ggl_cvm3, ridge, many n
 recompute = False
 
 
@@ -26,33 +26,36 @@ K = row['K']
 ns = ast.literal_eval(row['ns']) #i20,40,60]
 n_descr = 'full_n'
 # make so can read from file system what has been computed already, or have an assertion that it has been computed
-rss = range(0,32)
+rss = range(0,4) #32)
 
 algo_color_dict = {
     'ridge':'grey',
     'wit':'red',
-    'suo':'orange',
-    'gglasso':'green'
+    # 'suo':'orange',
+    # 'gglasso':'green'
 }
 algo_descr = 'all_algos' # 'successful_algos'
 
 
-pen_objs = PenObjs({'wt_u1':'min',
-                    'vt_u1':'min',
-                    'wt_U3':'min',
-                    'vt_U3':'min',
-                    'rho1':'max',
-                    'rho1_cv':'max',
-                    'R2s3':'max',
-                    'R2s3_cv':'max',
+pen_objs = PenObjs({'wt_U1':'min',
+                    'vt_U1':'min',
+                    'wt_U2':'min',
+                    'vt_U2':'min',
+                    'r2s1':'max',
+                    'r2s2':'max',
+                    'r2s1_cv':'max',
+                    'r2s2_cv':'max',
                     }
 )
-mets_to_plot = ['wt_U3','vt_U3','R2s3']
+mets_to_plot = ['vt_U1','vt_U2','r2s1','r2s2']
 mets_for_pen_selection = {
-    'R2s3': ':',
-    'R2s3_cv': '-'
+    'r2s1_cv': ':',
+    'r2s2_cv': '-'
 }
-metr_descr = '3_cc_bundle'
+assert set(mets_to_plot).issubset(set(pen_objs.keys()))
+assert set(mets_for_pen_selection.keys()).issubset(set(pen_objs.keys()))
+
+metr_descr = '2_cc_bundle'
 
 fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}"
 
@@ -85,13 +88,16 @@ def make_plot(algo_color_dict):
     rows = load_best_rows(algo_color_dict.keys())
     print(rows.keys())
     
-    fig,axs = plt.subplots(ncols=3,figsize=(12,6))
+    ncols = len(mets_to_plot); figsize = (6*ncols, 9)
+    fig,axs = plt.subplots(ncols=ncols,figsize=figsize)
 
     for idx,met in enumerate(mets_to_plot):
         ax=axs[idx]
         ax.set_title(met)
         for algo,color in algo_color_dict.items():
+            #print(rows[algo].columns)
             df_met = select_values(rows[algo],met)
+            #print(df_met)
             for objv,ls in mets_for_pen_selection.items():
                 label = algo + '+' + objv
                 (df_met.xs(objv,axis=1,level=1)

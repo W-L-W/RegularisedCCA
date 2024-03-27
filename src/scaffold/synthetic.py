@@ -189,9 +189,18 @@ def best_pen(df: pd.DataFrame, objv: str, min_or_max='min'):
 def best_pen_rows(setting: Setting, rs: int, pen_objs: PenObjs):
     df_full,df_cvav = load_metric_dfs(setting,rs)
     df_cv_means = df_cvav.xs('mean',axis=1, level=1, drop_level=True).reset_index()
-    
+    # rename non-pen columns to have a _cv suffix
+    df_cv_means.columns = [col + '_cv' if col not in ['pen'] else col for col in df_cv_means.columns]
+
+    # create extra columns in df_full for r2sk
+    K = setting.K
+    rho_cols = df_full[[f'rho{r}' for r in range(1,K+1)]]
+    renamer = {f'rho{i}': f'r2s{i}' for i in range(1,K+1)}
+    new_cols = (rho_cols**2).cumsum(axis=1).rename(columns = renamer)
+    df_fuller = pd.concat([df_full,new_cols],axis=1)
+
     # combine into a single dataframe, used for remainder of the function
-    df = pd.merge(df_full,df_cv_means,on='pen',suffixes=['','_cv'])
+    df = pd.merge(df_fuller,df_cv_means,on='pen') # now obselete ,suffixes=['','_cv'])
 
     # collect dict of best pens:
     pen_dict = {objv: best_pen(df,objv,sign) for objv,sign in pen_objs.items()}
