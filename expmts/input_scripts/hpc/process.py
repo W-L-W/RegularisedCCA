@@ -37,6 +37,7 @@ algo_color_dict = {
 algo_descr = 'all_algos' # 'successful_algos'
 
 
+<<<<<<< Updated upstream
 pen_objs = PenObjs({'wt_U1':'min',
                     'vt_U1':'min',
                     'wt_U2':'min',
@@ -51,13 +52,29 @@ mets_to_plot = ['vt_U1','vt_U2','r2s1','r2s2']
 mets_for_pen_selection = {
     'r2s1_cv': ':',
     'r2s2_cv': '-'
+=======
+pen_objs = PenObjs({'wt_u1':'min',
+                    'vt_u1':'min',
+                    'wt_U3':'min',
+                    'vt_U3':'min',
+                    'rho1':'max',
+                    'rho1_cv':'max',
+                    'r2s3':'max',
+                    'r2s3_cv':'max',
+                    }
+)
+mets_to_plot = ['wt_U3','vt_U3','r2s3']
+mets_for_pen_selection = {
+    'r2s3': ':',
+    'r2s3_cv': '-'
+>>>>>>> Stashed changes
 }
 assert set(mets_to_plot).issubset(set(pen_objs.keys()))
 assert set(mets_for_pen_selection.keys()).issubset(set(pen_objs.keys()))
 
 metr_descr = '2_cc_bundle'
 
-fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}"
+fig_file_name = f"vary_n_{row['cov_type']}_{n_descr}_{algo_descr}_{metr_descr}"
 
 
 def processed_df(algos):
