@@ -21,27 +21,31 @@ def _masked_power(vec: Vector, power: float, atol: float = 10**-6, rgln: float =
     w[~mask] = rgln
     return w
 
-def enforce_genuinely_non_negative(vec: Vector, atol: float =10**-6, msg: str = ''):
+def enforce_genuinely_non_negative(vec: Vector, atol: float =10**-6, msg: str = '', err_handling='assert'):
     """Check that any negative entries of vector have magnitude less than atol and replace these with zeros"""
-    assert np.isclose(vec[vec < 0], 0, atol=atol).all(), msg
+    no_error = np.isclose(vec[vec < 0], 0, atol=atol).all()
+    if err_handling=='assert':
+        assert no_error, msg
+    else:
+        print(msg, '\nOriginal vector:', vec, '\nModified vector:', vec2)
     vec2 = vec.copy()
     vec2[vec < 0] = 0
     return vec2
 
-def mhalf(vec: Vector):
+def mhalf(vec: Vector, err_handling = 'assert'):
     """Raise elements of a non-negative vector to the power of (-1/2), leaving zero entries as zero"""
     # this masking implementation was significantly faster than using np.vectorize on large vectors
-    vec = enforce_genuinely_non_negative(vec, msg ='Input to square root must be non-negative')
+    vec = enforce_genuinely_non_negative(vec, msg ='Input to square root must be non-negative', err_handling=err_handling)
     return _masked_power(vec, -0.5)
 
-def sqrtm(M: PSDMatrix):
+def sqrtm(M: PSDMatrix, err_handling = 'assert'):
     w, v = np.linalg.eigh(M)
-    w = enforce_genuinely_non_negative(w)
+    w = enforce_genuinely_non_negative(w, err_handling=err_handling) # do want check even for 1/2 power as still need non-neg
     return v @ np.diag(w**0.5) @ v.T
 
-def nsqrtm(M: PSDMatrix):
+def nsqrtm(M: PSDMatrix, err_handling = 'assert'):
     w, v = np.linalg.eigh(M)
-    w_nsqrt = mhalf(w)
+    w_nsqrt = mhalf(w, err_handling=err_handling)
     return v@ np.diag(w_nsqrt) @v.T
 
 def symmetric_pinv(M: SymMatrix, rgln: float = 10**-8):
