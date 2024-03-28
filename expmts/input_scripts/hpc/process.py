@@ -9,10 +9,12 @@ from src.scaffold.io_preferences import output_folder, save_mplib
 from src.scaffold.synthetic import PenObjs, select_values, vary_n_best_rows
 from hpc_base import get_row, create_mvn
 
+from src.algos import algo_labels
+
 import matplotlib.pyplot as plt
 
 exp_idx = 16 #12 is pboot_nm_ggl_cvm3, ridge, many n
-recompute = True
+recompute = False
 
 
 row = get_row(exp_idx)
@@ -99,7 +101,7 @@ def make_plot(algo_color_dict):
             df_met = select_values(rows[algo],met)
             #print(df_met)
             for objv,ls in mets_for_pen_selection.items():
-                label = algo + '+' + objv
+                label = algo_labels[algo] + '+' + objv
                 (df_met.xs(objv,axis=1,level=1)
                 .plot(y='mean',label=label,ax=ax,ls=ls,color=color,
                     marker='.')
