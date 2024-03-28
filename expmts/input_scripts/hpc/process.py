@@ -1,17 +1,17 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 import os
 import ast
 
 from expmts.input_scripts.hpc.hpc_base import is_pboot
 
+from src.algos import algo_labels
 from src.scaffold.io_preferences import output_folder, save_mplib
 from src.scaffold.synthetic import PenObjs, select_values, vary_n_best_rows
 from hpc_base import get_row, create_mvn
 
-from src.algos import algo_labels
-
-import matplotlib.pyplot as plt
 
 exp_idx = 16 #12 is pboot_nm_ggl_cvm3, ridge, many n
 recompute = False
